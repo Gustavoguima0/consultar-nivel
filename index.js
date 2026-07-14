@@ -1,25 +1,33 @@
 const snmp = require("net-snmp");
 
-const ip = "192.168.0.9";
-const community = "public";
+const ip = process.argv[2];
+const community = process.argv[3] || "public";
 
-const oidBase = "1.3.6.1.2.1.43";
-
-const session = snmp.createSession(ip, community);  
-
-function aoReceberDados(varbinds) {
-  for (const vb of varbinds) {
-    console.log(vb.oid + " = " + vb.value.toString());
-  }
+if (!ip) {
+    console.error("Uso: node index.js <ip> [community]");
+    process.exit(1);
 }
 
-function aoFinalizar(error) {
-  if (error) {
-    console.error("Erro no walk:", error.toString());
-  } else {
-    console.log("Walk concluído.");
-  }
-  session.close();
+const session = snmp.createSession(ip, community, { version: snmp.Version2c });
+
+function listar(titulo, oidBase, aoTerminar) {
+    console.log("\n=== " + titulo + " (" + oidBase + ") ===");
+    session.subtree(oidBase, function (varbinds) {
+        for (const vb of varbinds) {
+            if (!snmp.isVarbindError(vb)) {
+                console.log(vb.oid + " = " + vb.value.toString());
+            }
+        }
+    }, function (error) {
+        if (error) {
+            console.error("Erro:", error.toString());
+        }
+        aoTerminar();
+    });
 }
 
-session.subtree(oidBase, aoReceberDados, aoFinalizar);
+listar("SUPRIMENTOS", "1.3.6.1.2.1.43.11.1.1", function () {
+    listar("BANDEJAS", "1.3.6.1.2.1.43.8.2.1", function () {
+        session.close();
+    });
+});
