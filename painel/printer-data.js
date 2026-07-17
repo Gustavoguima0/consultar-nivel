@@ -18,9 +18,11 @@ function daysSince(dateStr) {
 export function severityOf(p) {
     if (p.status === 'offline') return 'critical';
     if (p.wasteBox >= 95) return 'critical';
-    if (p.cartridges.some((c) => c.level <= 10)) return 'critical';
+    if (p.cartridges.some((c) => !c.semLeitura && c.level <= 10)) return 'critical';
+    if (p.cartridges.some((c) => c.semLeitura && c.alerta === 'critico')) return 'critical';
     if (p.wasteBox >= 80) return 'warning';
-    if (p.cartridges.some((c) => c.level <= 25)) return 'warning';
+    if (p.cartridges.some((c) => !c.semLeitura && c.level <= 25)) return 'warning';
+    if (p.cartridges.some((c) => c.semLeitura && c.alerta === 'baixo')) return 'warning';
     if (p.lastMaintenance && daysSince(p.lastMaintenance) > 180) return 'warning';
     return 'ok';
 }
@@ -59,10 +61,21 @@ export function adaptarImpressora(imp) {
     cartridges: consumiveis.map(function (s) {
       const ehToner = s.tipo === 'toner';
       if (s.percentual !== null) {
-        return { name: s.descricao || 'Consumível', level: s.percentual, ehToner: ehToner };
+        return {
+          name: s.descricao || 'Consumível',
+          level: s.percentual,
+          ehToner: ehToner,
+          semLeitura: false,
+          alerta: s.alerta,
+        };
       }
-      const nivelEstimado = s.alerta === 'critico' ? 5 : s.alerta === 'baixo' ? 18 : 100;
-      return { name: (s.descricao || 'Consumível') + ' (sem leitura)', level: nivelEstimado, ehToner: ehToner };
+      return {
+        name: s.descricao || 'Consumível',
+        level: 0,
+        ehToner: ehToner,
+        semLeitura: true,
+        alerta: s.alerta,
+      };
     }),
   };
 }

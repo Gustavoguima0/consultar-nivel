@@ -376,14 +376,17 @@ class Component extends DCLogic {
     if (typeof window !== 'undefined') window.scrollTo(0, 0);
   }
 
-  enrich(p) {
+    enrich(p) {
     const mod = this._mod;
     const sev = mod.severityOf(p);
     const sevColor = mod.SEVERITY_COLOR[sev];
     const sevBg = `color-mix(in oklch, ${sevColor} 22%, var(--color-bg))`;
     const cartridges = p.cartridges.map((c) => ({
       ...c,
-      color: c.level <= 10 ? mod.SEVERITY_COLOR.critical : c.level <= 25 ? mod.SEVERITY_COLOR.warning : mod.SEVERITY_COLOR.ok,
+      color: c.semLeitura ? mod.SEVERITY_COLOR.offline
+        : c.level <= 10 ? mod.SEVERITY_COLOR.critical
+        : c.level <= 25 ? mod.SEVERITY_COLOR.warning
+        : mod.SEVERITY_COLOR.ok,
     }));
     const toners = cartridges.filter((c) => c.ehToner);
     const resumo = toners.length > 1 ? toners : toners.map((c) => ({ ...c, name: 'Toner' }));
@@ -391,8 +394,13 @@ class Component extends DCLogic {
     const reasons = [];
     if (p.status === 'offline') reasons.push('Impressora offline — sem resposta de rede.');
     cartridges.forEach((c) => {
-      if (c.level <= 10) reasons.push(`Toner ${c.name.toLowerCase()} crítico: ${c.level}%.`);
-      else if (c.level <= 25) reasons.push(`Toner ${c.name.toLowerCase()} baixo: ${c.level}%.`);
+      if (c.semLeitura) {
+        if (c.alerta === 'critico') reasons.push(`${c.name}: impressora indica troca (sem leitura de nível).`);
+        else if (c.alerta === 'baixo') reasons.push(`${c.name}: impressora indica nível baixo (sem leitura de nível).`);
+      } else {
+        if (c.level <= 10) reasons.push(`Toner ${c.name.toLowerCase()} crítico: ${c.level}%.`);
+        else if (c.level <= 25) reasons.push(`Toner ${c.name.toLowerCase()} baixo: ${c.level}%.`);
+      }
     });
     if (p.wasteBox >= 95) reasons.push(`Caixa de resíduo cheia: ${p.wasteBox}%.`);
     else if (p.wasteBox >= 80) reasons.push(`Caixa de resíduo quase cheia: ${p.wasteBox}%.`);
