@@ -1,16 +1,17 @@
 {
   "name": "consultar-nivel",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "version": "2.0.0",
+  "description": "Monitoramento de impressoras via SNMP com painel web",
+  "main": "servidor.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node servidor.js",
+    "coletar": "node coletor/coletor.js"
   },
-  "keywords": [],
-  "author": "",
   "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
-    "net-snmp": "^3.26.3"
+    "express": "^5.1.0",
+    "net-snmp": "^3.26.3",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   }
 }

@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="./vendor/react.production.min.js"></script>
+    <script src="./vendor/react-dom.production.min.js"></script>
+    <script src="./support.js"></script>
+</head>
+
+<body>
+    <x-dc>
+
+        <helmet>
+            <link rel="stylesheet" href="_ds/nocturne-dfa72ce9-d866-4c88-aeaf-c54194042492/styles.css">
+            <script src="_ds/nocturne-dfa72ce9-d866-4c88-aeaf-c54194042492/_ds_bundle.js"></script>
+        </helmet>
+        <div style="min-height:100vh;background:var(--color-bg);color:var(--color-text);font-family:var(--font-body);">
+
+            <header class="nav"
+                style="padding:14px 28px;border-bottom:1px solid var(--color-divider);background:var(--color-surface);">
+                <span class="nav-brand" style="display:flex;align-items:center;gap:10px;">
+                    <span
+                        style="width:26px;height:26px;border-radius:6px;border:1.5px solid var(--color-accent);display:flex;align-items:center;justify-content:center;">
+                        <svg width="14" height="14" viewBox="0 0 256 256" fill="none" stroke="currentColor"
+                            style="color:var(--color-accent)" stroke-width="14">
+                            <rect x="56" y="24" width="144" height="64" rx="6"></rect>
+                            <rect x="32" y="88" width="192" height="96" rx="10"></rect>
+                            <rect x="80" y="160" width="96" height="64" rx="4"></rect>
+                        </svg>
+                    </span>
+                    PrintWatch
+                </span>
+                <a href="#" aria-current="{{ overviewCurrent }}" onClick="{{ goOverview }}">Visão geral</a>
+                <a href="#" aria-current="{{ alertsCurrent }}" onClick="{{ goAlerts }}"
+                    style="display:flex;align-items:center;gap:6px;">Alertas
+                    <sc-if value="{{ hasAlerts }}" hint-placeholder-val="{{ false }}">
+                        <span class="tag" style="background:{{ alertBadgeBg }};color:{{ alertBadgeColor }};">{{
+                            alertCount }}</span>
+                    </sc-if>
+                </a>
+                <a href="#" aria-current="{{ historyCurrent }}" onClick="{{ goHistory }}">Histórico</a>
+                <span style="font-size:12px;opacity:.55;margin-left:8px;">TI · Setor de Suporte</span>
+            </header>
+
+            <sc-if value="{{ notLoaded }}" hint-placeholder-val="{{ true }}">
+                <div style="padding:48px;font-size:13px;opacity:.6;">Carregando dados das impressoras…</div>
+            </sc-if>
+
+            <sc-if value="{{ showOverview }}" hint-placeholder-val="{{ false }}">
+                <main data-screen-label="Visão geral" style="padding:28px 28px 48px;max-width:1400px;margin:0 auto;">
+                    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:20px;">
+                        <div>
+                            <h2 style="margin-bottom:2px;">Visão geral</h2>
+                            <div style="font-size:13px;opacity:.6;">{{ printerCount }} impressoras monitoradas em todo o
+                                hospital</div>
+                        </div>
+                    </div>
+
+                    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;">
+                        <div class="card elev-sm">
+                            <div class="card-kicker" style="color:{{ colorCritical }};">Crítico</div>
+                            <div class="card-title">{{ countCritical }}</div>
+                            <p class="card-body">Toner esgotando, caixa cheia ou offline</p>
+                        </div>
+                        <div class="card elev-sm">
+                            <div class="card-kicker" style="color:{{ colorWarning }};">Atenção</div>
+                            <div class="card-title">{{ countWarning }}</div>
+                            <p class="card-body">Consumíveis baixos ou manutenção pendente</p>
+                        </div>
+                        <div class="card elev-sm">
+                            <div class="card-kicker" style="color:{{ colorOk }};">Normal</div>
+                            <div class="card-title">{{ countOk }}</div>
+                            <p class="card-body">Operando dentro do esperado</p>
+                        </div>
+                        <div class="card elev-sm">
+                            <div class="card-kicker">Offline</div>
+                            <div class="card-title">{{ countOffline }}</div>
+                            <p class="card-body">Sem resposta de rede no momento</p>
+                        </div>
+                    </div>
+
+                    <div style="display:flex;gap:12px;align-items:center;margin-bottom:20px;flex-wrap:wrap;">
+                        <input class="input" style="max-width:320px;"
+                            placeholder="Buscar por setor, modelo ou impressora" value="{{ search }}"
+                            onChange="{{ setSearch }}"></input>
+                        <div class="seg">
+                            <label class="seg-opt"><input type="radio" name="ov-filter" checked="{{ filterAll }}"
+                                    onChange="{{ setFilterAll }}"></input>Todas</label>
+                            <label class="seg-opt"><input type="radio" name="ov-filter" checked="{{ filterCritical }}"
+                                    onChange="{{ setFilterCritical }}"></input>Crítico</label>
+                            <label class="seg-opt"><input type="radio" name="ov-filter" checked="{{ filterWarning }}"
+                                    onChange="{{ setFilterWarning }}"></input>Atenção</label>
+                            <label class="seg-opt"><input type="radio" name="ov-filter" checked="{{ filterOk }}"
+                                    onChange="{{ setFilterOk }}"></input>Normal</label>
+                        </div>
+                    </div>
+
+                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:16px;">
+                        <sc-for list="{{ filteredPrinters }}" as="p" hint-placeholder-count="8">
+                            <div class="card elev-sm" style="cursor:pointer;gap:10px;" onClick="{{ p.openDetail }}">
+                                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+                                    <div class="card-title">{{ p.name }}</div>
+                                    <span
+                                        style="font-size:11px;padding:3px 9px;border-radius:6px;background:{{ p.sevBg }};color:{{ p.sevColor }};white-space:nowrap;">{{
+                                        p.sevLabel }}</span>
+                                </div>
+                                <div style="font-size:12px;opacity:.6;">{{ p.model }}</div>
+                                <div style="display:flex;flex-direction:column;gap:6px;">
+                                    <sc-for list="{{ p.resumo }}" as="c" hint-placeholder-count="1">
+                                        <div style="display:flex;align-items:center;gap:8px;font-size:11px;">
+                                            <span style="width:58px;opacity:.65;flex:none;">{{ c.name }}</span>
+                                            <div
+                                                style="flex:1;height:6px;border-radius:4px;background:var(--color-neutral-800);overflow:hidden;">
+                                                <div
+                                                    style="height:100%;width:{{ c.level }}%;background:{{ c.color }};border-radius:4px;">
+                                                </div>
+                                            </div>
+                                            <span style="width:30px;text-align:right;opacity:.75;flex:none;">{{ c.level
+                                                }}%</span>
+                                        </div>
+                                    </sc-for>
+                                    <sc-if value="{{ p.temCaixa }}" hint-placeholder-val="{{ false }}">
+                                        <div style="display:flex;align-items:center;gap:8px;font-size:11px;">
+                                            <span style="width:58px;opacity:.65;flex:none;">Caixa</span>
+                                            <div
+                                                style="flex:1;height:6px;border-radius:4px;background:var(--color-neutral-800);overflow:hidden;">
+                                                <div
+                                                    style="height:100%;width:{{ p.wasteBox }}%;background:{{ p.wasteColor }};border-radius:4px;">
+                                                </div>
+                                            </div>
+                                            <span style="width:30px;text-align:right;opacity:.75;flex:none;">{{
+                                                p.wasteBox }}%</span>
+                                        </div>
+                                    </sc-if>
+                                </div>
+                                <div class="card-meta" style="justify-content:space-between;">
+                                    <span>{{ p.statusLabel }}</span>
+                                </div>
+                            </div>
+                        </sc-for>
+                        <div style="display:flex;align-items:center;gap:8px;font-size:11px;">
+                            <span style="width:58px;opacity:.65;flex:none;">Caixa</span>
+                            <div
+                                style="flex:1;height:6px;border-radius:4px;background:var(--color-neutral-800);overflow:hidden;">
+                                <div
+                                    style="height:100%;width:{{ p.wasteBox }}%;background:{{ p.wasteColor }};border-radius:4px;">
+                                </div>
+                            </div>
+                            <span style="width:30px;text-align:right;opacity:.75;flex:none;">{{ p.wasteBox
+                                }}%</span>
+                        </div>
+                    </div>
+                    <div class="card-meta" style="justify-content:space-between;">
+                        <span>{{ p.statusLabel }}</span>
+                        <span>Manut.: {{ p.lastMaintenanceFmt }}</span>
+                    </div>
+        </div>
+        </sc-for>
+        </div>
+        </main>
+        </sc-if>
+
+        <sc-if value="{{ showDetail }}" hint-placeholder-val="{{ false }}">
+            <main data-screen-label="Detalhe da impressora"
+                style="padding:28px 28px 48px;max-width:1100px;margin:0 auto;">
+                <button type="button" class="btn btn-ghost" onClick="{{ goOverview }}">
+                    <svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor">
+                        <path
+                            d="M165.66,202.34a8,8,0,0,1-11.32,11.32l-80-80a8,8,0,0,1,0-11.32l80-80a8,8,0,0,1,11.32,11.32L91.31,128Z">
+                        </path>
+                    </svg>
+                    Voltar
+                </button>
+
+                <div
+                    style="display:flex;justify-content:space-between;align-items:flex-start;margin-top:20px;flex-wrap:wrap;gap:16px;">
+                    <div>
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <h2 style="margin:0;">{{ selected.name }}</h2>
+                            <span
+                                style="font-size:11px;padding:3px 9px;border-radius:6px;background:{{ selected.sevBg }};color:{{ selected.sevColor }};">{{
+                                selected.sevLabel }}</span>
+                        </div>
+                        <div style="font-size:13px;opacity:.65;margin-top:4px;">{{ selected.sector }} · {{
+                            selected.floor }} · {{ selected.model }}</div>
+                    </div>
+                    <div style="text-align:right;font-size:12px;opacity:.65;">
+                        <div>IP {{ selected.ip }}</div>
+                        <div>{{ selected.statusLabel }}</div>
+                    </div>
+                </div>
+
+                <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:18px;margin-top:22px;">
+                    <div class="card elev-sm" style="gap:16px;">
+                        <div class="card-kicker">Consumíveis</div>
+                        <sc-for list="{{ selected.cartridges }}" as="c" hint-placeholder-count="1">
+                            <div style="display:flex;flex-direction:column;gap:6px;">
+                                <div style="display:flex;justify-content:space-between;font-size:13px;">
+                                    <span>{{ c.name }}</span>
+                                    <span style="opacity:.8;">{{ c.level }}%</span>
+                                </div>
+                                <div
+                                    style="height:10px;border-radius:5px;background:var(--color-neutral-800);overflow:hidden;">
+                                    <div
+                                        style="height:100%;width:{{ c.level }}%;background:{{ c.color }};border-radius:5px;">
+                                    </div>
+                                </div>
+                            </div>
+                        </sc-for>
+                        <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px;">
+                            <div style="display:flex;justify-content:space-between;font-size:13px;">
+                                <span>Caixa de resíduo</span>
+                                <span style="opacity:.8;">{{ selected.wasteBox }}% cheia</span>
+                            </div>
+                            <div
+                                style="height:10px;border-radius:5px;background:var(--color-neutral-800);overflow:hidden;">
+                                <div
+                                    style="height:100%;width:{{ selected.wasteBox }}%;background:{{ selected.wasteColor }};border-radius:5px;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card elev-sm" style="gap:10px;">
+                        <div class="card-kicker">Informações</div>
+                        <div style="display:flex;justify-content:space-between;font-size:13px;"><span
+                                style="opacity:.6;">Setor</span><span>{{ selected.sector }}</span></div>
+                        <div style="display:flex;justify-content:space-between;font-size:13px;"><span
+                                style="opacity:.6;">Localização</span><span>{{ selected.floor }}</span></div>
+                        <div style="display:flex;justify-content:space-between;font-size:13px;"><span
+                                style="opacity:.6;">Modelo</span><span>{{ selected.model }}</span></div>
+                        <div style="display:flex;justify-content:space-between;font-size:13px;"><span
+                                style="opacity:.6;">Endereço IP</span><span>{{ selected.ip }}</span></div>
+                        <div style="display:flex;justify-content:space-between;font-size:13px;"><span
+                                style="opacity:.6;">Última manutenção</span><span>{{ selected.lastMaintenanceFmt
+                                }}</span></div>
+                    </div>
+                </div>
+
+                <div style="margin-top:28px;">
+                    <h5 style="margin-bottom:14px;">Histórico</h5>
+                    <div style="display:flex;flex-direction:column;">
+                        <sc-for list="{{ selected.events }}" as="ev" hint-placeholder-count="3">
+                            <div
+                                style="display:flex;gap:14px;padding:10px 0;border-bottom:1px solid var(--color-divider);">
+                                <span
+                                    style="width:8px;height:8px;border-radius:50%;background:{{ ev.dotColor }};flex:none;margin-top:6px;"></span>
+                                <div style="flex:1;">
+                                    <div style="font-size:13px;">{{ ev.desc }}</div>
+                                    <div style="font-size:11px;opacity:.55;margin-top:2px;">{{ ev.whenFmt }}</div>
+                                </div>
+                                <span class="tag"
+                                    style="background:{{ ev.tagBg }};color:{{ ev.tagColor }};height:fit-content;">{{
+                                    ev.typeLabel }}</span>
+                            </div>
+                        </sc-for>
+                    </div>
+                </div>
+            </main>
+        </sc-if>
+
+        <sc-if value="{{ showHistory }}" hint-placeholder-val="{{ false }}">
+            <main data-screen-label="Histórico" style="padding:28px 28px 48px;max-width:1400px;margin:0 auto;">
+                <h2 style="margin-bottom:4px;">Histórico de eventos</h2>
+                <div style="font-size:13px;opacity:.6;margin-bottom:20px;">Trocas de toner, manutenções, alertas e
+                    mudanças de status de todas as impressoras</div>
+
+                <div style="display:flex;gap:12px;align-items:center;margin-bottom:18px;flex-wrap:wrap;">
+                    <input class="input" style="max-width:320px;" placeholder="Buscar por impressora ou setor"
+                        value="{{ histSearch }}" onChange="{{ setHistSearch }}"></input>
+                    <div class="seg">
+                        <label class="seg-opt"><input type="radio" name="hist-filter" checked="{{ histAll }}"
+                                onChange="{{ setHistAll }}"></input>Todos</label>
+                        <label class="seg-opt"><input type="radio" name="hist-filter" checked="{{ histCritical }}"
+                                onChange="{{ setHistCritical }}"></input>Crítico</label>
+                        <label class="seg-opt"><input type="radio" name="hist-filter" checked="{{ histWarning }}"
+                                onChange="{{ setHistWarning }}"></input>Atenção</label>
+                        <label class="seg-opt"><input type="radio" name="hist-filter" checked="{{ histOk }}"
+                                onChange="{{ setHistOk }}"></input>Informativo</label>
+                    </div>
+                </div>
+
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Data / hora</th>
+                            <th>Impressora</th>
+                            <th>Setor</th>
+                            <th>Evento</th>
+                            <th>Severidade</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <sc-for list="{{ filteredEvents }}" as="ev" hint-placeholder-count="6">
+                            <tr style="cursor:pointer;" onClick="{{ ev.openDetail }}">
+                                <td class="text-muted">{{ ev.whenFmt }}</td>
+                                <td>{{ ev.printerName }}</td>
+                                <td>{{ ev.sector }}</td>
+                                <td>{{ ev.desc }}</td>
+                                <td><span class="tag" style="background:{{ ev.tagBg }};color:{{ ev.tagColor }};">{{
+                                        ev.typeLabel }}</span></td>
+                            </tr>
+                        </sc-for>
+                    </tbody>
+                </table>
+            </main>
+        </sc-if>
+
+        <sc-if value="{{ showAlerts }}" hint-placeholder-val="{{ false }}">
+            <main data-screen-label="Alertas" style="padding:28px 28px 48px;max-width:1000px;margin:0 auto;">
+                <h2 style="margin-bottom:4px;">Alertas ativos</h2>
+                <div style="font-size:13px;opacity:.6;margin-bottom:22px;">{{ alertCount }} impressoras precisam de
+                    atenção agora</div>
+
+                <div style="display:flex;flex-direction:column;gap:12px;">
+                    <sc-for list="{{ alertPrinters }}" as="p" hint-placeholder-count="3">
+                        <div class="card elev-sm" style="gap:10px;">
+                            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+                                <div>
+                                    <div class="card-kicker">{{ p.sector }} · {{ p.floor }}</div>
+                                    <div class="card-title">{{ p.name }} <span
+                                            style="font-weight:400;opacity:.6;font-size:14px;">— {{ p.model
+                                            }}</span></div>
+                                </div>
+                                <span
+                                    style="font-size:11px;padding:3px 9px;border-radius:6px;background:{{ p.sevBg }};color:{{ p.sevColor }};white-space:nowrap;">{{
+                                    p.sevLabel }}</span>
+                            </div>
+                            <ul
+                                style="margin:0;padding-left:18px;font-size:13px;opacity:.85;display:flex;flex-direction:column;gap:4px;">
+                                <sc-for list="{{ p.reasons }}" as="r" hint-placeholder-count="1">
+                                    <li>{{ r }}</li>
+                                </sc-for>
+                            </ul>
+                            <div>
+                                <button type="button" class="btn btn-secondary" onClick="{{ p.openDetail }}">Ver
+                                    detalhes</button>
+                            </div>
+                        </div>
+                    </sc-for>
+                </div>
+
+                <sc-if value="{{ noAlerts }}" hint-placeholder-val="{{ false }}">
+                    <div class="card elev-sm">
+                        <p class="card-body">Nenhum alerta ativo no momento — todas as impressoras estão operando
+                            normalmente.</p>
+                    </div>
+                </sc-if>
+            </main>
+        </sc-if>
+
+        </div>
+
+    </x-dc>
+    <script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = {
+    screen: 'overview',
+    selectedId: null,
+    search: '',
+    filter: 'all',
+    histSearch: '',
+    histFilter: 'all',
+    loaded: false,
+    printers: [],
+    events: [],
+  };
+
+  async componentDidMount() {
+    const mod = await import('./printer-data.js');
+    this._mod = mod;
+    const carregar = async () => {
+      const resposta = await fetch('/api/impressoras');
+      const dados = await resposta.json();
+      this.setState({ loaded: true, printers: dados.map(mod.adaptarImpressora), events: mod.allEvents() });
+    };
+    await carregar();
+    setInterval(carregar, 60000);
+  }
+
+  go(screen, id) {
+    this.setState({ screen, selectedId: id != null ? id : this.state.selectedId });
+    if (typeof window !== 'undefined') window.scrollTo(0, 0);
+  }
+
+  enrich(p) {
+    const mod = this._mod;
+    const sev = mod.severityOf(p);
+    const sevColor = mod.SEVERITY_COLOR[sev];
+    const sevBg = `color-mix(in oklch, ${sevColor} 22%, var(--color-bg))`;
+    const cartridges = p.cartridges.map((c) => ({
+      ...c,
+      color: c.level <= 10 ? mod.SEVERITY_COLOR.critical : c.level <= 25 ? mod.SEVERITY_COLOR.warning : mod.SEVERITY_COLOR.ok,
+    }));
+    const toners = cartridges.filter((c) => c.ehToner);
+    const resumo = toners.length > 1 ? toners : toners.map((c) => ({ ...c, name: 'Toner' }));
+    const wasteColor = p.wasteBox >= 95 ? mod.SEVERITY_COLOR.critical : p.wasteBox >= 80 ? mod.SEVERITY_COLOR.warning : mod.SEVERITY_COLOR.ok;
+    const reasons = [];
+    if (p.status === 'offline') reasons.push('Impressora offline — sem resposta de rede.');
+    cartridges.forEach((c) => {
+      if (c.level <= 10) reasons.push(`Toner ${c.name.toLowerCase()} crítico: ${c.level}%.`);
+      else if (c.level <= 25) reasons.push(`Toner ${c.name.toLowerCase()} baixo: ${c.level}%.`);
+    });
+    if (p.wasteBox >= 95) reasons.push(`Caixa de resíduo cheia: ${p.wasteBox}%.`);
+    else if (p.wasteBox >= 80) reasons.push(`Caixa de resíduo quase cheia: ${p.wasteBox}%.`);
+    const printerEvents = this.state.events.filter((e) => e.printerId === p.id).map((e) => this.enrichEvent(e));
+    return {
+      ...p,
+      sevKey: sev,
+      sevColor,
+      sevBg,
+      sevLabel: mod.SEVERITY_LABEL[sev],
+      cartridges,
+      resumo,
+      wasteColor,
+      statusLabel: p.status === 'offline' ? 'Offline' : 'Online',
+      lastMaintenanceFmt: mod.formatDate(p.lastMaintenance),
+      reasons,
+      events: printerEvents,
+      openDetail: () => this.go('detail', p.id),
+    };
+  }
+
+  enrichEvent(ev) {
+    const mod = this._mod;
+    const color = mod.SEVERITY_COLOR[ev.severity];
+    return {
+      ...ev,
+      whenFmt: mod.formatDateTime(ev.when),
+      typeLabel: mod.EVENT_LABEL[ev.type],
+      dotColor: color,
+      tagBg: `color-mix(in oklch, ${color} 22%, var(--color-bg))`,
+      tagColor: color,
+      openDetail: () => this.go('detail', ev.printerId),
+    };
+  }
+
+  renderVals() {
+    const mod = this._mod;
+    const { screen, selectedId, search, filter, histSearch, histFilter, loaded } = this.state;
+    if (!loaded || !mod) {
+      return { loaded: false, notLoaded: true, showOverview: false, showDetail: false, showHistory: false, showAlerts: false };
+    }
+
+    const enriched = this.state.printers.map((p) => this.enrich(p));
+
+    const bySearch = (p, q) => {
+      const s = q.trim().toLowerCase();
+      if (!s) return true;
+      return p.name.toLowerCase().includes(s) || p.sector.toLowerCase().includes(s) || p.model.toLowerCase().includes(s);
+    };
+
+    const filteredPrinters = enriched.filter((p) => bySearch(p, search) && (filter === 'all' || p.sevKey === filter));
+
+    const countCritical = enriched.filter((p) => p.sevKey === 'critical').length;
+    const countWarning = enriched.filter((p) => p.sevKey === 'warning').length;
+    const countOk = enriched.filter((p) => p.sevKey === 'ok').length;
+    const countOffline = enriched.filter((p) => p.status === 'offline').length;
+
+    const alertPrinters = enriched.filter((p) => p.sevKey !== 'ok');
+
+    const allEvts = this.state.events.map((e) => this.enrichEvent(e));
+    const filteredEvents = allEvts.filter((e) => {
+      const s = histSearch.trim().toLowerCase();
+      const matchSearch = !s || e.printerName.toLowerCase().includes(s) || e.sector.toLowerCase().includes(s);
+      const matchFilter = histFilter === 'all' || e.severity === histFilter;
+      return matchSearch && matchFilter;
+    });
+
+    const selectedPrinter = enriched.find((p) => p.id === selectedId) || enriched[0];
+
+    return {
+      loaded: true,
+      notLoaded: false,
+      showOverview: screen === 'overview',
+      showDetail: screen === 'detail',
+      showHistory: screen === 'history',
+      showAlerts: screen === 'alerts',
+      overviewCurrent: screen === 'overview' ? 'page' : undefined,
+      historyCurrent: screen === 'history' ? 'page' : undefined,
+      alertsCurrent: screen === 'alerts' ? 'page' : undefined,
+      goOverview: (e) => { e && e.preventDefault && e.preventDefault(); this.go('overview'); },
+      goHistory: (e) => { e && e.preventDefault && e.preventDefault(); this.go('history'); },
+      goAlerts: (e) => { e && e.preventDefault && e.preventDefault(); this.go('alerts'); },
+      printerCount: enriched.length,
+      colorCritical: mod.SEVERITY_COLOR.critical,
+      colorWarning: mod.SEVERITY_COLOR.warning,
+      colorOk: mod.SEVERITY_COLOR.ok,
+      countCritical, countWarning, countOk, countOffline,
+      search,
+      setSearch: (e) => this.setState({ search: e.target.value }),
+      filterAll: filter === 'all', filterCritical: filter === 'critical', filterWarning: filter === 'warning', filterOk: filter === 'ok',
+      setFilterAll: () => this.setState({ filter: 'all' }),
+      setFilterCritical: () => this.setState({ filter: 'critical' }),
+      setFilterWarning: () => this.setState({ filter: 'warning' }),
+      setFilterOk: () => this.setState({ filter: 'ok' }),
+      filteredPrinters,
+      selected: selectedPrinter,
+      hasAlerts: alertPrinters.length > 0,
+      noAlerts: alertPrinters.length === 0,
+      alertCount: alertPrinters.length,
+      alertBadgeBg: `color-mix(in oklch, ${mod.SEVERITY_COLOR.critical} 25%, var(--color-bg))`,
+      alertBadgeColor: mod.SEVERITY_COLOR.critical,
+      alertPrinters,
+      histSearch,
+      setHistSearch: (e) => this.setState({ histSearch: e.target.value }),
+      histAll: histFilter === 'all', histCritical: histFilter === 'critical', histWarning: histFilter === 'warning', histOk: histFilter === 'ok',
+      setHistAll: () => this.setState({ histFilter: 'all' }),
+      setHistCritical: () => this.setState({ histFilter: 'critical' }),
+      setHistWarning: () => this.setState({ histFilter: 'warning' }),
+      setHistOk: () => this.setState({ histFilter: 'ok' }),
+      filteredEvents,
+    };
+  }
+}
+
+</script>
+</body>
+
+</html>

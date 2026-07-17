@@ -5,14 +5,12 @@
     "sala": "E.C.G - Exames Cardíacos",
     "ip": "192.168.0.45"
   },
-
   {
     "id": "hp-uti",
     "nome": "HP - UTI",
     "sala": "UTI - Sala de Internação",
     "ip": "192.168.0.9"
   },
-
   {
     "id": "hp-recepcao",
     "nome": "HP - Recepção",

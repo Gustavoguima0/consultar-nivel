@@ -1,0 +1,74 @@
+export const SEVERITY_COLOR = {
+    ok: 'oklch(72% 0.12 155)',
+    warning: 'oklch(80% 0.15 85)',
+    critical: 'oklch(68% 0.19 25)',
+    offline: '#75798c',
+};
+
+export const SEVERITY_LABEL = {
+    ok: 'Normal',
+    warning: 'Atenção',
+    critical: 'Crítico',
+};
+
+function daysSince(dateStr) {
+    return Math.round((Date.now() - new Date(dateStr).getTime()) / 86400000);
+}
+
+export function severityOf(p) {
+    if (p.status === 'offline') return 'critical';
+    if (p.wasteBox >= 95) return 'critical';
+    if (p.cartridges.some((c) => c.level <= 10)) return 'critical';
+    if (p.wasteBox >= 80) return 'warning';
+    if (p.cartridges.some((c) => c.level <= 25)) return 'warning';
+    if (p.lastMaintenance && daysSince(p.lastMaintenance) > 180) return 'warning';
+    return 'ok';
+}
+
+export function severityColor(p) {
+    return SEVERITY_COLOR[severityOf(p)];
+}
+
+export function formatDate(dateStr) {
+    if (!dateStr) return '—';
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+export function formatDateTime(dateStr) {
+    const d = new Date(dateStr);
+    return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+export function adaptarImpressora(imp) {
+  const suprimentos = imp.suprimentos || [];
+  const residuos = suprimentos.find((s) => s.tipo === 'residuos');
+  const consumiveis = suprimentos.filter((s) => s.tipo !== 'residuos');
+
+  return {
+    id: imp.id,
+    name: imp.nome,
+    sector: imp.sala,
+    floor: imp.ip,
+    model: imp.modelo || 'Modelo desconhecido',
+    ip: imp.ip,
+    status: imp.conectada ? 'online' : 'offline',
+    temCaixa: !!residuos,
+    wasteBox: residuos && residuos.percentual !== null ? residuos.percentual : 0,
+    lastMaintenance: null,
+    cartridges: consumiveis.map(function (s) {
+      const ehToner = s.tipo === 'toner';
+      if (s.percentual !== null) {
+        return { name: s.descricao || 'Consumível', level: s.percentual, ehToner: ehToner };
+      }
+      const nivelEstimado = s.alerta === 'critico' ? 5 : s.alerta === 'baixo' ? 18 : 100;
+      return { name: (s.descricao || 'Consumível') + ' (sem leitura)', level: nivelEstimado, ehToner: ehToner };
+    }),
+  };
+}
+
+export const EVENT_SEVERITY = {};
+export const EVENT_LABEL = {};
+export function allEvents() {
+    return [];
+}

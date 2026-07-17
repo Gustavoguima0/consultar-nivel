@@ -4,7 +4,7 @@ const ip = process.argv[2];
 const community = process.argv[3] || "public";
 
 if (!ip) {
-    console.error("Uso: node index.js <ip> [community]");
+    console.error("Uso: node ferramentas/diagnostico.js <ip> [community]");
     process.exit(1);
 }
 

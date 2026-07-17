@@ -1,5 +1,5 @@
 const snmp = require("net-snmp");
-const impressoras = require("./impressoras.json");
+const impressoras = require("../config/impressoras.json");
 
 const community = "public";
 
@@ -11,10 +11,10 @@ const OIDS_GERAIS = {
 
 const TABELA_SUPRIMENTOS = "1.3.6.1.2.1.43.11.1.1";
 const TABELA_BANDEJAS = "1.3.6.1.2.1.43.8.2.1";
+const TABELA_STATUS_IMPRESSORA = "1.3.6.1.2.1.25.3.5.1";
 
 const COL_SUP = { classe: "4", tipo: "5", descricao: "6", max: "8", nivel: "9" };
 const COL_BAND = { max: "9", nivel: "10", nome: "13", descricao: "18" };
-const TABELA_STATUS_IMPRESSORA = "1.3.6.1.2.1.25.3.5.1";
 
 const TIPOS_SUPRIMENTO = {
     3: "toner",
@@ -147,7 +147,6 @@ async function coletar(impressora) {
             };
         });
 
-      
         for (const sup of suprimentos) {
             if (sup.tipo === "toner" && sup.alerta === null) {
                 if (avisos.includes("sem-toner")) sup.alerta = "critico";
@@ -192,9 +191,14 @@ async function coletar(impressora) {
     }
 }
 
-async function principal() {
-    const resultados = await Promise.all(impressoras.map(coletar));
-    console.log(JSON.stringify(resultados, null, 2));
+async function coletarTodas() {
+    return Promise.all(impressoras.map(coletar));
 }
 
-principal();
+module.exports = { coletarTodas };
+
+if (require.main === module) {
+    coletarTodas().then(function (resultados) {
+        console.log(JSON.stringify(resultados, null, 2));
+    });
+}
