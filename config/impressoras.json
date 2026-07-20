@@ -1,9 +1,45 @@
 [
   {
-    "id": "kyocera-ecg",
-    "nome": "Kyocera E.C.G",
-    "sala": "E.C.G - Exames Cardíacos",
-    "ip": "192.168.0.45"
+    "id": "hp-recepcao",
+    "nome": "HP - Recepção",
+    "sala": "Recepção - Entrada",
+    "ip": "192.168.0.58"
+  },
+  {
+    "id": "kyocera-consultorio1",
+    "nome": "Kyocera - Consultório 1",
+    "sala": "Consultório 1 - Sala de Atendimento",
+    "ip": "192.168.0.21"
+  },
+  {
+    "id": "kyocera-consultorio2",
+    "nome": "Kyocera - Consultório 2",
+    "sala": "Consultório 2 - Sala de Atendimento",
+    "ip": "192.168.0.33"
+  },
+  {
+    "id": "kyocera-consultorio3",
+    "nome": "Kyocera - Consultório 3",
+    "sala": "Consultório 3 - Sala de Atendimento",
+    "ip": "192.168.0.182"
+  },
+  {
+    "id": "kyocera-consultorio4",
+    "nome": "Kyocera - Consultório 4",
+    "sala": "Consultório 4 - Sala de Atendimento",
+    "ip": "192.168.0.47"
+  },
+  {
+    "id": "kyocera-consultorio5",
+    "nome": "Kyocera - Consultório 5",
+    "sala": "Consultório 5 - Sala de Atendimento",
+    "ip": "192.168.0.39"
+  },
+  {
+    "id": "kyocera-consultorio6",
+    "nome": "Kyocera - Consultório 6",
+    "sala": "Consultório 6 - Sala de Atendimento",
+    "ip": "192.168.0.50"
   },
   {
     "id": "hp-uti",
@@ -12,9 +48,15 @@
     "ip": "192.168.0.9"
   },
   {
-    "id": "hp-recepcao",
-    "nome": "HP - Recepção",
-    "sala": "Recepção - Entrada",
-    "ip": "192.168.0.58"
+    "id": "kyocera-ecg",
+    "nome": "Kyocera E.C.G",
+    "sala": "E.C.G - Exames Cardíacos",
+    "ip": "192.168.0.45"
+  },
+  {
+    "id": "kyocera-Serviço-Social",
+    "nome": "Kyocera - Serviço Social",
+    "sala": "Serviço Social - Setor Administrativo",
+    "ip": "192.168.0.54"
   }
 ]
