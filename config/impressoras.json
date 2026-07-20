@@ -54,6 +54,12 @@
     "ip": "192.168.0.45"
   },
   {
+    "id": "kyocera-cordenacao",
+    "nome": "Kyocera - Coordenação",
+    "sala": "Coordenação - Setor Administrativo",
+    "ip": "192.168.0.41"
+  },
+  {
     "id": "kyocera-Serviço-Social",
     "nome": "Kyocera - Serviço Social",
     "sala": "Serviço Social - Setor Administrativo",
