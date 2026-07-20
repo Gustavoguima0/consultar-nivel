@@ -58,7 +58,8 @@
                         </div>
                     </div>
 
-                    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;">
+                    <div
+                        style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:24px;">
                         <div class="card elev-sm">
                             <div class="card-kicker" style="color:{{ colorCritical }};">Crítico</div>
                             <div class="card-title">{{ countCritical }}</div>
@@ -73,6 +74,11 @@
                             <div class="card-kicker" style="color:{{ colorOk }};">Normal</div>
                             <div class="card-title">{{ countOk }}</div>
                             <p class="card-body">Operando dentro do esperado</p>
+                        </div>
+                        <div class="card elev-sm">
+                            <div class="card-kicker" style="color:{{ colorUnknown }};">Sem leitura</div>
+                            <div class="card-title">{{ countUnknown }}</div>
+                            <p class="card-body">Toner que a impressora não informa o nível</p>
                         </div>
                         <div class="card elev-sm">
                             <div class="card-kicker">Offline</div>
@@ -111,19 +117,20 @@
                                 <div style="font-size:12px;opacity:.6;">{{ p.model }}</div>
 
                                 <div style="display:flex;flex-direction:column;gap:6px;">
-                                    <sc-for list="{{ p.resumo }}" as="c" hint-placeholder-count="1">
+                                                                        <sc-for list="{{ p.resumo }}" as="c" hint-placeholder-count="1">
                                         <div style="display:flex;align-items:center;gap:8px;font-size:11px;">
-                                            <span style="width:58px;opacity:.65;flex:none;">{{ c.name }}</span>
-                                            <div
-                                                style="flex:1;height:6px;border-radius:4px;background:var(--color-neutral-800);overflow:hidden;">
-                                                <div
-                                                    style="height:100%;width:{{ c.level }}%;background:{{ c.color }};border-radius:4px;">
+                                            <span style="flex:1;opacity:.75;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.name }}</span>
+                                            <sc-if value="{{ c.temLeitura }}" hint-placeholder-val="{{ true }}">
+                                                <div style="width:90px;height:6px;border-radius:4px;background:var(--color-neutral-800);overflow:hidden;flex:none;">
+                                                    <div style="height:100%;width:{{ c.level }}%;background:{{ c.color }};border-radius:4px;"></div>
                                                 </div>
-                                            </div>
-                                            <span style="width:30px;text-align:right;opacity:.75;flex:none;">{{ c.level }}%</span>
+                                                <span style="width:34px;text-align:right;opacity:.75;flex:none;">{{ c.level }}%</span>
+                                            </sc-if>
+                                            <sc-if value="{{ c.semLeitura }}" hint-placeholder-val="{{ false }}">
+                                                <span style="text-align:right;color:{{ c.statusCor }};opacity:.9;flex:none;">{{ c.statusTexto }}</span>
+                                            </sc-if>
                                         </div>
                                     </sc-for>
-
                                     <sc-if value="{{ p.temCaixa }}" hint-placeholder-val="{{ false }}">
                                         <div style="display:flex;align-items:center;gap:8px;font-size:11px;">
                                             <span style="width:58px;opacity:.65;flex:none;">Caixa</span>
@@ -133,12 +140,14 @@
                                                     style="height:100%;width:{{ p.wasteBox }}%;background:{{ p.wasteColor }};border-radius:4px;">
                                                 </div>
                                             </div>
-                                            <span style="width:30px;text-align:right;opacity:.75;flex:none;">{{ p.wasteBox }}%</span>
+                                            <span style="width:30px;text-align:right;opacity:.75;flex:none;">{{
+                                                p.wasteBox }}%</span>
                                         </div>
                                     </sc-if>
                                 </div>
 
-                                <div class="card-meta" style="display:flex;justify-content:space-between;font-size:11px;opacity:.7;margin-top:auto;padding-top:4px;">
+                                <div class="card-meta"
+                                    style="display:flex;justify-content:space-between;font-size:11px;opacity:.7;margin-top:auto;padding-top:4px;">
                                     <span>{{ p.statusLabel }}</span>
                                     <span>Manut: {{ p.lastMaintenanceFmt }}</span>
                                 </div>
@@ -186,14 +195,21 @@
                                 <div style="display:flex;flex-direction:column;gap:6px;">
                                     <div style="display:flex;justify-content:space-between;font-size:13px;">
                                         <span>{{ c.name }}</span>
-                                        <span style="opacity:.8;">{{ c.level }}%</span>
+                                        <sc-if value="{{ c.temLeitura }}" hint-placeholder-val="{{ true }}">
+                                            <span style="opacity:.8;">{{ c.level }}%</span>
+                                        </sc-if>
+                                        <sc-if value="{{ c.semLeitura }}" hint-placeholder-val="{{ false }}">
+                                            <span style="color:{{ c.statusCor }};">{{ c.statusTexto }}</span>
+                                        </sc-if>
                                     </div>
-                                    <div
-                                        style="height:10px;border-radius:5px;background:var(--color-neutral-800);overflow:hidden;">
+                                    <sc-if value="{{ c.temLeitura }}" hint-placeholder-val="{{ true }}">
                                         <div
-                                            style="height:100%;width:{{ c.level }}%;background:{{ c.color }};border-radius:5px;">
+                                            style="height:10px;border-radius:5px;background:var(--color-neutral-800);overflow:hidden;">
+                                            <div
+                                                style="height:100%;width:{{ c.level }}%;background:{{ c.color }};border-radius:5px;">
+                                            </div>
                                         </div>
-                                    </div>
+                                    </sc-if>
                                 </div>
                             </sc-for>
                             <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px;">
@@ -287,7 +303,7 @@
                                     <td>{{ ev.sector }}</td>
                                     <td>{{ ev.desc }}</td>
                                     <td><span class="tag" style="background:{{ ev.tagBg }};color:{{ ev.tagColor }};">{{
-                                                ev.typeLabel }}</span></td>
+                                            ev.typeLabel }}</span></td>
                                 </tr>
                             </sc-for>
                         </tbody>
@@ -304,7 +320,8 @@
                     <div style="display:flex;flex-direction:column;gap:12px;">
                         <sc-for list="{{ alertPrinters }}" as="p" hint-placeholder-count="3">
                             <div class="card elev-sm" style="gap:10px;">
-                                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+                                <div
+                                    style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
                                     <div>
                                         <div class="card-kicker">{{ p.sector }} · {{ p.floor }}</div>
                                         <div class="card-title">{{ p.name }} <span
@@ -381,15 +398,24 @@ class Component extends DCLogic {
     const sev = mod.severityOf(p);
     const sevColor = mod.SEVERITY_COLOR[sev];
     const sevBg = `color-mix(in oklch, ${sevColor} 22%, var(--color-bg))`;
-    const cartridges = p.cartridges.map((c) => ({
-      ...c,
-      color: c.semLeitura ? mod.SEVERITY_COLOR.offline
-        : c.level <= 10 ? mod.SEVERITY_COLOR.critical
-        : c.level <= 25 ? mod.SEVERITY_COLOR.warning
-        : mod.SEVERITY_COLOR.ok,
-    }));
+    const cartridges = p.cartridges.map((c) => {
+      const semLeitura = !!c.semLeitura;
+      let statusTexto = 'sem leitura';
+      let statusCor = mod.SEVERITY_COLOR.offline;
+      if (semLeitura && c.alerta === 'critico') { statusTexto = 'trocar · sem leitura'; statusCor = mod.SEVERITY_COLOR.critical; }
+      else if (semLeitura && c.alerta === 'baixo') { statusTexto = 'baixo · sem leitura'; statusCor = mod.SEVERITY_COLOR.warning; }
+      return {
+        ...c,
+        temLeitura: !semLeitura,
+        statusTexto,
+        statusCor,
+        color: c.level <= 10 ? mod.SEVERITY_COLOR.critical
+          : c.level <= 25 ? mod.SEVERITY_COLOR.warning
+          : mod.SEVERITY_COLOR.ok,
+      };
+    });
     const toners = cartridges.filter((c) => c.ehToner);
-    const resumo = toners.length > 1 ? toners : toners.map((c) => ({ ...c, name: 'Toner' }));
+    const resumo = toners;
     const wasteColor = p.wasteBox >= 95 ? mod.SEVERITY_COLOR.critical : p.wasteBox >= 80 ? mod.SEVERITY_COLOR.warning : mod.SEVERITY_COLOR.ok;
     const reasons = [];
     if (p.status === 'offline') reasons.push('Impressora offline — sem resposta de rede.');
@@ -456,10 +482,11 @@ class Component extends DCLogic {
     const countCritical = enriched.filter((p) => p.sevKey === 'critical').length;
     const countWarning = enriched.filter((p) => p.sevKey === 'warning').length;
     const countOk = enriched.filter((p) => p.sevKey === 'ok').length;
+    const countUnknown = enriched.filter((p) => p.sevKey === 'unknown').length;
     const countOffline = enriched.filter((p) => p.status === 'offline').length;
 
     const alertPrinters = enriched.filter((p) => p.sevKey !== 'ok');
-
+    
     const allEvts = this.state.events.map((e) => this.enrichEvent(e));
     const filteredEvents = allEvts.filter((e) => {
       const s = histSearch.trim().toLowerCase();
@@ -487,7 +514,8 @@ class Component extends DCLogic {
       colorCritical: mod.SEVERITY_COLOR.critical,
       colorWarning: mod.SEVERITY_COLOR.warning,
       colorOk: mod.SEVERITY_COLOR.ok,
-      countCritical, countWarning, countOk, countOffline,
+      colorUnknown: mod.SEVERITY_COLOR.unknown,
+      countCritical, countWarning, countOk, countUnknown, countOffline,
       search,
       setSearch: (e) => this.setState({ search: e.target.value }),
       filterAll: filter === 'all', filterCritical: filter === 'critical', filterWarning: filter === 'warning', filterOk: filter === 'ok',

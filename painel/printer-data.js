@@ -2,6 +2,7 @@ export const SEVERITY_COLOR = {
     ok: 'oklch(72% 0.12 155)',
     warning: 'oklch(80% 0.15 85)',
     critical: 'oklch(68% 0.19 25)',
+    unknown: '#8b8fa3',
     offline: '#75798c',
 };
 
@@ -9,6 +10,7 @@ export const SEVERITY_LABEL = {
     ok: 'Normal',
     warning: 'Atenção',
     critical: 'Crítico',
+    unknown: 'Sem leitura',
 };
 
 function daysSince(dateStr) {
@@ -24,6 +26,7 @@ export function severityOf(p) {
     if (p.cartridges.some((c) => !c.semLeitura && c.level <= 25)) return 'warning';
     if (p.cartridges.some((c) => c.semLeitura && c.alerta === 'baixo')) return 'warning';
     if (p.lastMaintenance && daysSince(p.lastMaintenance) > 180) return 'warning';
+    if (p.cartridges.some((c) => c.semLeitura && c.ehToner)) return 'unknown';
     return 'ok';
 }
 
