@@ -395,7 +395,7 @@ class Component extends DCLogic {
         temLeitura: !semLeitura,
         statusTexto,
         statusCor,
-        color: c.level <= 10 ? mod.SEVERITY_COLOR.critical
+        color: c.level <= 5 ? mod.SEVERITY_COLOR.critical
           : c.level <= 25 ? mod.SEVERITY_COLOR.warning
           : mod.SEVERITY_COLOR.ok,
       };
@@ -410,7 +410,8 @@ class Component extends DCLogic {
         if (c.alerta === 'critico') reasons.push(`${c.name}: impressora indica troca (sem leitura de nível).`);
         else if (c.alerta === 'baixo') reasons.push(`${c.name}: impressora indica nível baixo (sem leitura de nível).`);
       } else {
-        if (c.level <= 10) reasons.push(`Toner ${c.name.toLowerCase()} crítico: ${c.level}%.`);
+        if (c.level <= 5) reasons.push(`Toner ${c.name.toLowerCase()} crítico: ${c.level}%.`);
+        else if (c.level <= 10) reasons.push(`Toner ${c.name.toLowerCase()} em atenção: ${c.level}%.`);
         else if (c.level <= 25) reasons.push(`Toner ${c.name.toLowerCase()} baixo: ${c.level}%.`);
       }
     });
