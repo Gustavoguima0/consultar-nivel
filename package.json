@@ -9,6 +9,7 @@
   },
   "license": "ISC",
   "dependencies": {
+    "better-sqlite3": "^13.0.1",
     "express": "^5.1.0",
     "net-snmp": "^3.26.3",
     "react": "^18.3.1",

@@ -1,1 +1,4 @@
 node_modules/
+banco/dados.db
+banco/dados.db-wal
+banco/dados.db-shm

@@ -50,7 +50,8 @@ function calcularAlerta(classe, nivel) {
     }
     if (nivel.estado === "vazia") return "critico";
     if (nivel.percentual === null) return null;
-    if (nivel.percentual <= 10) return "critico";
+    if (nivel.percentual <= 5) return "critico";
+    if (nivel.percentual <= 10) return "atencao";
     if (nivel.percentual <= 25) return "baixo";
     return null;
 }
