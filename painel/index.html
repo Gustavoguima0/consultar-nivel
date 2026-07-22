@@ -41,6 +41,13 @@
                     </sc-if>
                 </a>
                 <a href="#" aria-current="{{ historyCurrent }}" onClick="{{ goHistory }}">Histórico</a>
+                <a href="#" aria-current="{{ estoqueCurrent }}" onClick="{{ goEstoque }}"
+                    style="display:flex;align-items:center;gap:6px;">Estoque
+                    <sc-if value="{{ temEstoqueBaixo }}" hint-placeholder-val="{{ false }}">
+                        <span class="tag" style="background:{{ estoqueBadgeBg }};color:{{ alertBadgeColor }};">{{
+                            estoqueBaixo }}</span>
+                    </sc-if>
+                </a>
                 <span style="font-size:12px;opacity:.55;margin-left:8px;">TI · Setor de Suporte</span>
             </header>
 
@@ -375,6 +382,46 @@
                 </main>
             </sc-if>
 
+            <sc-if value="{{ showEstoque }}" hint-placeholder-val="{{ false }}">
+                <main data-screen-label="Estoque" style="padding:28px 28px 48px;max-width:900px;margin:0 auto;">
+                    <h2 style="margin-bottom:4px;">Estoque de toner</h2>
+                    <div style="font-size:13px;opacity:.6;margin-bottom:20px;">Quantos toners de cada modelo há no
+                        depósito. Cada troca (manual ou automática) baixa 1 do estoque.</div>
+
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Modelo</th>
+                                <th>Em estoque</th>
+                                <th>Mínimo</th>
+                                <th>Ajustar</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <sc-for list="{{ estoqueView }}" as="e" hint-placeholder-count="4">
+                                <tr>
+                                    <td>{{ e.modelo }}</td>
+                                    <td><span style="color:{{ e.corQtd }};font-weight:500;">{{ e.quantidade }}</span>
+                                    </td>
+                                    <td>
+                                        <input class="input" type="number" min="0" style="width:70px;"
+                                            value="{{ e.minimo }}" onChange="{{ e.setMinimo }}"></input>
+                                    </td>
+                                    <td>
+                                        <div style="display:flex;gap:6px;">
+                                            <button type="button" class="btn btn-secondary"
+                                                onClick="{{ e.menos }}">-1</button>
+                                            <button type="button" class="btn btn-primary"
+                                                onClick="{{ e.mais }}">+1</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </sc-for>
+                        </tbody>
+                    </table>
+                </main>
+            </sc-if>
+
         </div>
 
     </x-dc>
@@ -390,43 +437,36 @@ class Component extends DCLogic {
     loaded: false,
     printers: [],
     events: [],
+    estoque: [],
     trocaAberta: false,
     trocaData: '',
     trocaToner: '',
     trocaMsg: '',
   };
 
+  async componentDidMount() {
     const mod = await import('./printer-data.js');
     this._mod = mod;
-    this.carregar = async () => {
-      const [ri, rh] = await Promise.all([fetch('/api/impressoras'), fetch('/api/historico')]);
-      const dados = await ri.json();
-      let hist = [];
-      try { hist = await rh.json(); } catch (e) { hist = mod.allEvents(); }
-      this.setState({ loaded: true, printers: dados.map(mod.adaptarImpressora), events: hist });
-    };  async componentDidMount() {
-    const mod = await import('./printer-data.js');
-    this._mod = mod;
-    // pede permissao pra notificar na tela (uma vez)
     try {
       if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
         Notification.requestPermission();
       }
     } catch (e) {}
     this.carregar = async () => {
-      const [ri, rh] = await Promise.all([fetch('/api/impressoras'), fetch('/api/historico')]);
+      const [ri, rh, re] = await Promise.all([fetch('/api/impressoras'), fetch('/api/historico'), fetch('/api/estoque')]);
       const dados = await ri.json();
       let hist = [];
       try { hist = await rh.json(); } catch (e) { hist = mod.allEvents(); }
+      let estoque = [];
+      try { estoque = await re.json(); } catch (e) { estoque = []; }
       const adaptadas = dados.map(mod.adaptarImpressora);
       this.avisarCriticas(adaptadas);
-      this.setState({ loaded: true, printers: adaptadas, events: hist });
+      this.setState({ loaded: true, printers: adaptadas, events: hist, estoque: estoque });
     };
     await this.carregar();
     this._interval = setInterval(this.carregar, 60000);
   }
 
-  // avisa na tela quando uma impressora NOVA fica critica (nao repete as que ja estavam)
   avisarCriticas(lista) {
     const mod = this._mod;
     const agora = new Set();
@@ -496,7 +536,18 @@ class Component extends DCLogic {
     }
   }
 
-    enrich(p) {
+  async ajustarEstoque(modelo, quantidade, minimo) {
+    try {
+      await fetch('/api/estoque', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ modelo: modelo, quantidade: quantidade, minimo: minimo }),
+      });
+      if (this.carregar) await this.carregar();
+    } catch (e) {}
+  }
+
+  enrich(p) {
     const mod = this._mod;
     const sev = mod.severityOf(p);
     const sevColor = mod.SEVERITY_COLOR[sev];
@@ -588,7 +639,7 @@ class Component extends DCLogic {
     const mod = this._mod;
     const { screen, selectedId, search, filter, histSearch, histFilter, loaded } = this.state;
     if (!loaded || !mod) {
-      return { loaded: false, notLoaded: true, showOverview: false, showDetail: false, showHistory: false, showAlerts: false };
+      return { loaded: false, notLoaded: true, showOverview: false, showDetail: false, showHistory: false, showAlerts: false, showEstoque: false };
     }
 
     const enriched = this.state.printers.map((p) => this.enrich(p));
@@ -608,7 +659,7 @@ class Component extends DCLogic {
     const countOffline = enriched.filter((p) => p.status === 'offline').length;
 
     const alertPrinters = enriched.filter((p) => p.sevKey !== 'ok');
-    
+
     const allEvts = this.state.events.map((e) => this.enrichEvent(e));
     const filteredEvents = allEvts.filter((e) => {
       const s = histSearch.trim().toLowerCase();
@@ -621,6 +672,18 @@ class Component extends DCLogic {
     const tonerPadrao = (selectedPrinter.cartridges || []).filter((c) => c.ehToner)[0];
     const tonerPadraoNome = tonerPadrao ? tonerPadrao.name : '';
 
+    const estoqueView = (this.state.estoque || []).map((it) => ({
+      modelo: it.modelo,
+      quantidade: it.quantidade,
+      minimo: it.minimo,
+      baixo: it.quantidade <= it.minimo,
+      corQtd: it.quantidade <= it.minimo ? mod.SEVERITY_COLOR.critical : mod.SEVERITY_COLOR.ok,
+      mais: () => this.ajustarEstoque(it.modelo, it.quantidade + 1, it.minimo),
+      menos: () => this.ajustarEstoque(it.modelo, Math.max(0, it.quantidade - 1), it.minimo),
+      setMinimo: (e) => this.ajustarEstoque(it.modelo, it.quantidade, parseInt(e.target.value, 10) || 0),
+    }));
+    const estoqueBaixo = estoqueView.filter((x) => x.baixo).length;
+
     return {
       loaded: true,
       notLoaded: false,
@@ -628,12 +691,19 @@ class Component extends DCLogic {
       showDetail: screen === 'detail',
       showHistory: screen === 'history',
       showAlerts: screen === 'alerts',
+      showEstoque: screen === 'estoque',
       overviewCurrent: screen === 'overview' ? 'page' : undefined,
       historyCurrent: screen === 'history' ? 'page' : undefined,
       alertsCurrent: screen === 'alerts' ? 'page' : undefined,
+      estoqueCurrent: screen === 'estoque' ? 'page' : undefined,
       goOverview: (e) => { e && e.preventDefault && e.preventDefault(); this.go('overview'); },
       goHistory: (e) => { e && e.preventDefault && e.preventDefault(); this.go('history'); },
       goAlerts: (e) => { e && e.preventDefault && e.preventDefault(); this.go('alerts'); },
+      goEstoque: (e) => { e && e.preventDefault && e.preventDefault(); this.go('estoque'); },
+      estoqueView,
+      estoqueBaixo,
+      temEstoqueBaixo: estoqueBaixo > 0,
+      estoqueBadgeBg: `color-mix(in oklch, ${mod.SEVERITY_COLOR.critical} 25%, var(--color-bg))`,
       printerCount: enriched.length,
       colorCritical: mod.SEVERITY_COLOR.critical,
       colorWarning: mod.SEVERITY_COLOR.warning,

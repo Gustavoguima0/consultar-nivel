@@ -40,6 +40,11 @@ CREATE TABLE IF NOT EXISTS trocas (
   data TEXT NOT NULL,
   momento TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS estoque (
+  modelo TEXT PRIMARY KEY,
+  quantidade INTEGER NOT NULL DEFAULT 0,
+  minimo INTEGER NOT NULL DEFAULT 1
+);
 CREATE INDEX IF NOT EXISTS idx_coletas_imp ON coletas (impressora_id, momento);
 CREATE INDEX IF NOT EXISTS idx_eventos_mom ON eventos (momento);
 CREATE INDEX IF NOT EXISTS idx_trocas_imp ON trocas (impressora_id, data);
@@ -151,6 +156,18 @@ const salvarColeta = db.transaction(function (resultados) {
                     severidade: "ok",
                     momento: dia + "T12:00:00.000Z",
                 });
+                const est = baixaEstoque(s.descricao);
+                if (est.semEstoque) {
+                    inserirEvento.run({
+                        impressora_id: imp.id,
+                        nome: imp.nome || null,
+                        sala: imp.sala || null,
+                        tipo: "estoque",
+                        descricao: "Troca detectada, mas não havia " + (s.descricao || "toner") + " no estoque",
+                        severidade: "warning",
+                        momento: dia + "T12:00:01.000Z",
+                    });
+                }
             }
         }
 
@@ -187,6 +204,42 @@ function historico(limite) {
     });
 }
 
+const lerEstoque = db.prepare(`SELECT modelo, quantidade, minimo FROM estoque`);
+const getEstoque = db.prepare(`SELECT quantidade, minimo FROM estoque WHERE modelo = ?`);
+const upsertEstoque = db.prepare(
+    `INSERT INTO estoque (modelo, quantidade, minimo) VALUES (@modelo, @quantidade, @minimo)
+     ON CONFLICT(modelo) DO UPDATE SET quantidade = @quantidade, minimo = @minimo`
+);
+const baixaUm = db.prepare(`UPDATE estoque SET quantidade = quantidade - 1 WHERE modelo = ? AND quantidade > 0`);
+const modelosDetectados = db.prepare(`SELECT DISTINCT descricao FROM toners WHERE descricao IS NOT NULL`);
+
+function definirEstoque(modelo, quantidade, minimo) {
+    if (!modelo) return { ok: false };
+    const q = Math.max(0, parseInt(quantidade, 10) || 0);
+    const m = Math.max(0, parseInt(minimo, 10) || 0);
+    upsertEstoque.run({ modelo: modelo, quantidade: q, minimo: m });
+    return { ok: true };
+}
+
+function listarEstoque() {
+    const mapa = {};
+    for (const r of lerEstoque.all()) mapa[r.modelo] = r;
+    for (const d of modelosDetectados.all()) {
+        if (d.descricao && !mapa[d.descricao]) {
+            mapa[d.descricao] = { modelo: d.descricao, quantidade: 0, minimo: 1 };
+        }
+    }
+    return Object.values(mapa).sort(function (a, b) { return a.modelo.localeCompare(b.modelo); });
+}
+
+function baixaEstoque(modelo) {
+    if (!modelo) return { semEstoque: false };
+    const r = getEstoque.get(modelo);
+    if (!r || r.quantidade <= 0) return { semEstoque: true };
+    baixaUm.run(modelo);
+    return { semEstoque: false };
+}
+
 const inserirTroca = db.prepare(
     `INSERT INTO trocas (impressora_id, toner, data, momento)
      VALUES (@impressora_id, @toner, @data, @momento)`
@@ -199,8 +252,6 @@ const lerTrocas = db.prepare(
      WHERE impressora_id = ? ORDER BY data DESC, id DESC`
 );
 
-// registra uma troca de toner: grava na tabela "trocas" e cria um evento
-// no historico. a data (yyyy-mm-dd) e escolhida pelo usuario.
 const registrarTroca = db.transaction(function (dados) {
     const momento = new Date().toISOString();
     const data = dados.data || momento.slice(0, 10);
@@ -222,6 +273,19 @@ const registrarTroca = db.transaction(function (dados) {
         severidade: "ok",
         momento: data + "T12:00:00.000Z",
     });
+
+    const est = baixaEstoque(dados.toner);
+    if (est.semEstoque) {
+        inserirEvento.run({
+            impressora_id: dados.impressora_id,
+            nome: info.nome || null,
+            sala: info.sala || null,
+            tipo: "estoque",
+            descricao: "Troca registrada, mas não havia " + (dados.toner || "toner") + " no estoque",
+            severidade: "warning",
+            momento: data + "T12:00:01.000Z",
+        });
+    }
     return { ok: true };
 });
 
@@ -229,4 +293,4 @@ function trocasDe(impressoraId) {
     return lerTrocas.all(impressoraId);
 }
 
-module.exports = { salvarColeta, historico, severidadeDe, registrarTroca, trocasDe };
+module.exports = { salvarColeta, historico, severidadeDe, registrarTroca, trocasDe, listarEstoque, definirEstoque };

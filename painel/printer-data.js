@@ -89,6 +89,9 @@ export const EVENT_SEVERITY = {
   'sem-leitura': 'unknown',
   normalizou: 'ok',
   troca: 'ok',
+  normalizou: 'ok',
+  troca: 'ok',
+  estoque: 'warning',
 };
 
 export const EVENT_LABEL = {
@@ -98,6 +101,9 @@ export const EVENT_LABEL = {
   'sem-leitura': 'Sem leitura',
   normalizou: 'Normalizado',
   troca: 'Troca de toner',
+  normalizou: 'Normalizado',
+  troca: 'Troca de toner',
+  estoque: 'Estoque',
 };
 
 export function allEvents() {

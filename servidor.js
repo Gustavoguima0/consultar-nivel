@@ -1,7 +1,7 @@
 const express = require("express");
 const path = require("path");
 const { coletarTodas } = require("./coletor/coletor.js");
-const { salvarColeta, historico, registrarTroca } = require("./banco/banco.js");
+const { salvarColeta, historico, registrarTroca, listarEstoque, definirEstoque } = require("./banco/banco.js");
 
 const app = express();
 app.use(express.json());
@@ -45,6 +45,24 @@ app.post("/api/trocas", function (req, res) {
             toner: dados.toner,
             data: dados.data,
         });
+        res.json({ ok: true });
+    } catch (e) {
+        res.status(500).json({ erro: e.message });
+    }
+});
+
+app.get("/api/estoque", function (req, res) {
+    res.json(listarEstoque());
+});
+
+app.post("/api/estoque", function (req, res) {
+    const d = req.body || {};
+    if (!d.modelo) {
+        res.status(400).json({ erro: "modelo obrigatório" });
+        return;
+    }
+    try {
+        definirEstoque(d.modelo, d.quantidade, d.minimo);
         res.json({ ok: true });
     } catch (e) {
         res.status(500).json({ erro: e.message });
