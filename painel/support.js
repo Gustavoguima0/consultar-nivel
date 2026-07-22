@@ -1733,16 +1733,11 @@
       },
       __dcStreaming: (name) => streams.live(name),
       __dcSetProps: (name, overrides) => runtime.setProps(name, overrides),
-      /** Name of the component currently mounted as the page root — DC tools
-       *  push their template-stream here when targeting "the open page". */
+      
       __dcRootName: () => rootName,
-      /** Editor bridge — the encoded, `data-dc-tpl`-annotated template source.
-       *  The host editor parses this into its own template DOM so it can map a
-       *  rendered node (carrying the same `data-dc-tpl`) back to the source
-       *  node that emitted it. Returns the encoded form (`sc-camel-*` attrs,
-       *  `<sc-raw-*>`/`<sc-helmet>` tags); the editor decodes on serialize. */
+      
       __dcAnnotatedTemplate: (name) => runtime.annotatedTemplate(name),
-      /** Editor bridge — the *original* (decoded) template source. */
+      
       __dcTemplateSource: (name) => runtime.templateSource(name),
       __dcBoot: () => {
         rootName = boot(runtime, document) ?? rootName;
@@ -1750,8 +1745,7 @@
       },
       __dcRegistry: runtime.registry.entries,
       getDC: (name) => runtime.getDC(name),
-      // `DCLogic` is the documented base class name; `StreamableLogic` is the
-      // implementation alias kept for any project that already references it.
+      
       DCLogic: runtime.StreamableLogic,
       StreamableLogic: runtime.StreamableLogic
     };

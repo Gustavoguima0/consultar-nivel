@@ -1,4 +1,3 @@
-/* @ds-bundle: {"format":4,"namespace":"Nocturne_noctur","components":[],"sourceHashes":{},"inlinedExternals":[],"unexposedExports":[]} */
 
 (() => {
 
