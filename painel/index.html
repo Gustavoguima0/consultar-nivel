@@ -396,7 +396,6 @@ class Component extends DCLogic {
     trocaMsg: '',
   };
 
-  async componentDidMount() {
     const mod = await import('./printer-data.js');
     this._mod = mod;
     this.carregar = async () => {
@@ -405,9 +404,65 @@ class Component extends DCLogic {
       let hist = [];
       try { hist = await rh.json(); } catch (e) { hist = mod.allEvents(); }
       this.setState({ loaded: true, printers: dados.map(mod.adaptarImpressora), events: hist });
+    };  async componentDidMount() {
+    const mod = await import('./printer-data.js');
+    this._mod = mod;
+    // pede permissao pra notificar na tela (uma vez)
+    try {
+      if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+    } catch (e) {}
+    this.carregar = async () => {
+      const [ri, rh] = await Promise.all([fetch('/api/impressoras'), fetch('/api/historico')]);
+      const dados = await ri.json();
+      let hist = [];
+      try { hist = await rh.json(); } catch (e) { hist = mod.allEvents(); }
+      const adaptadas = dados.map(mod.adaptarImpressora);
+      this.avisarCriticas(adaptadas);
+      this.setState({ loaded: true, printers: adaptadas, events: hist });
     };
     await this.carregar();
     this._interval = setInterval(this.carregar, 60000);
+  }
+
+  // avisa na tela quando uma impressora NOVA fica critica (nao repete as que ja estavam)
+  avisarCriticas(lista) {
+    const mod = this._mod;
+    const agora = new Set();
+    for (const p of lista) {
+      if (mod.severityOf(p) === 'critical') agora.add(p.id + '|' + (p.name || p.id));
+    }
+    if (this._criticasAntes) {
+      for (const chave of agora) {
+        if (!this._criticasAntes.has(chave)) {
+          const nome = chave.split('|')[1];
+          this.notificarTela(nome);
+        }
+      }
+    }
+    this._criticasAntes = agora;
+  }
+
+  notificarTela(nome) {
+    try {
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        new Notification('⚠️ Impressora precisa de atenção', {
+          body: nome + ' — toner crítico, caixa cheia ou offline.',
+        });
+      }
+    } catch (e) {}
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 880;
+      gain.gain.value = 0.08;
+      osc.start();
+      osc.stop(ctx.currentTime + 0.25);
+    } catch (e) {}
   }
 
   componentWillUnmount() {
