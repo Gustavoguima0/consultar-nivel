@@ -145,7 +145,7 @@
                                 <div class="card-meta"
                                     style="display:flex;justify-content:space-between;font-size:11px;opacity:.7;margin-top:auto;padding-top:4px;">
                                     <span>{{ p.statusLabel }}</span>
-                                    <span>Manut: {{ p.lastMaintenanceFmt }}</span>
+                                    <span>Últ. troca: {{ p.ultimaTrocaFmt }}</span>
                                 </div>
 
                             </div>
@@ -475,6 +475,9 @@ class Component extends DCLogic {
     if (p.wasteBox >= 95) reasons.push(`Caixa de resíduo cheia: ${p.wasteBox}%.`);
     else if (p.wasteBox >= 80) reasons.push(`Caixa de resíduo quase cheia: ${p.wasteBox}%.`);
     const printerEvents = this.state.events.filter((e) => e.printerId === p.id).map((e) => this.enrichEvent(e));
+    const trocasP = this.state.events.filter((e) => e.printerId === p.id && e.type === 'troca');
+    let ultimaTroca = null;
+    for (const t of trocasP) { if (!ultimaTroca || t.when > ultimaTroca) ultimaTroca = t.when; }
     return {
       ...p,
       sevKey: sev,
@@ -485,7 +488,7 @@ class Component extends DCLogic {
       resumo,
       wasteColor,
       statusLabel: p.status === 'offline' ? 'Offline' : 'Online',
-      lastMaintenanceFmt: mod.formatDate(p.lastMaintenance),
+      ultimaTrocaFmt: mod.formatDate(ultimaTroca),
       reasons,
       events: printerEvents,
       openDetail: () => this.go('detail', p.id),
