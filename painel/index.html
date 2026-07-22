@@ -221,8 +221,13 @@
                             <div style="display:flex;justify-content:space-between;font-size:13px;"><span
                                     style="opacity:.6;">Endereço IP</span><span>{{ selected.ip }}</span></div>
                             <div style="display:flex;justify-content:space-between;font-size:13px;"><span
-                                    style="opacity:.6;">Última manutenção</span><span>{{ selected.lastMaintenanceFmt
+                                    style="opacity:.6;">Última troca</span><span>{{ selected.ultimaTrocaFmt
                                     }}</span></div>
+                            <div style="display:flex;justify-content:space-between;font-size:13px;"><span
+                                    style="opacity:.6;">Duração média</span><span>{{ selected.duracaoTexto }}</span>
+                            </div>
+                            <div style="display:flex;justify-content:space-between;font-size:13px;"><span
+                                    style="opacity:.6;">Previsão</span><span>{{ selected.previsaoTexto }}</span></div>
                         </div>
                     </div>
 
@@ -475,9 +480,21 @@ class Component extends DCLogic {
     if (p.wasteBox >= 95) reasons.push(`Caixa de resíduo cheia: ${p.wasteBox}%.`);
     else if (p.wasteBox >= 80) reasons.push(`Caixa de resíduo quase cheia: ${p.wasteBox}%.`);
     const printerEvents = this.state.events.filter((e) => e.printerId === p.id).map((e) => this.enrichEvent(e));
-    const trocasP = this.state.events.filter((e) => e.printerId === p.id && e.type === 'troca');
-    let ultimaTroca = null;
-    for (const t of trocasP) { if (!ultimaTroca || t.when > ultimaTroca) ultimaTroca = t.when; }
+    const trocasP = this.state.events.filter((e) => e.printerId === p.id && e.type === 'troca').map((e) => e.when).sort();
+    const ultimaTroca = trocasP.length ? trocasP[trocasP.length - 1] : null;
+    let duracaoMedia = null;
+    let diasDesde = null;
+    let previsao = null;
+    if (ultimaTroca) diasDesde = Math.round((Date.now() - new Date(ultimaTroca).getTime()) / 86400000);
+    if (trocasP.length >= 2) {
+      let soma = 0;
+      for (let i = 1; i < trocasP.length; i++) soma += (new Date(trocasP[i]) - new Date(trocasP[i - 1])) / 86400000;
+      duracaoMedia = Math.round(soma / (trocasP.length - 1));
+      if (diasDesde != null) previsao = duracaoMedia - diasDesde;
+    }
+    const duracaoTexto = duracaoMedia != null ? '~' + duracaoMedia + ' dias' : 'sem dados ainda';
+    let previsaoTexto = '—';
+    if (previsao != null) previsaoTexto = previsao > 0 ? 'trocar em ~' + previsao + ' dias' : 'pode acabar a qualquer momento';
     return {
       ...p,
       sevKey: sev,
@@ -488,7 +505,10 @@ class Component extends DCLogic {
       resumo,
       wasteColor,
       statusLabel: p.status === 'offline' ? 'Offline' : 'Online',
+      lastMaintenanceFmt: mod.formatDate(p.lastMaintenance),
       ultimaTrocaFmt: mod.formatDate(ultimaTroca),
+      duracaoTexto,
+      previsaoTexto,
       reasons,
       events: printerEvents,
       openDetail: () => this.go('detail', p.id),
@@ -533,7 +553,7 @@ class Component extends DCLogic {
     const countOffline = enriched.filter((p) => p.status === 'offline').length;
 
     const alertPrinters = enriched.filter((p) => p.sevKey !== 'ok');
-
+    
     const allEvts = this.state.events.map((e) => this.enrichEvent(e));
     const filteredEvents = allEvts.filter((e) => {
       const s = histSearch.trim().toLowerCase();

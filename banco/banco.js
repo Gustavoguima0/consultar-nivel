@@ -94,8 +94,19 @@ const ultimaSeveridade = db.prepare(
     `SELECT severidade FROM coletas WHERE impressora_id = ? ORDER BY id DESC LIMIT 1`
 );
 
+const ultimoNivelToner = db.prepare(
+    `SELECT t.percentual AS pct FROM toners t
+     JOIN coletas c ON c.id = t.coleta_id
+     WHERE c.impressora_id = ? AND t.descricao = ? AND t.percentual IS NOT NULL
+     ORDER BY t.id DESC LIMIT 1`
+);
+const trocaNoDia = db.prepare(
+    `SELECT id FROM trocas WHERE impressora_id = ? AND data = ? LIMIT 1`
+);
+
 const salvarColeta = db.transaction(function (resultados) {
     const momento = new Date().toISOString();
+    const dia = momento.slice(0, 10);
     for (const imp of resultados) {
         const sev = severidadeDe(imp);
         const anterior = ultimaSeveridade.get(imp.id);
@@ -113,6 +124,8 @@ const salvarColeta = db.transaction(function (resultados) {
         const suprimentos = imp.suprimentos || [];
         for (const s of suprimentos) {
             if (s.tipo !== "toner") continue;
+            const antes = s.descricao ? ultimoNivelToner.get(imp.id, s.descricao) : null;
+
             inserirToner.run({
                 coleta_id: info.lastInsertRowid,
                 descricao: s.descricao || null,
@@ -120,6 +133,25 @@ const salvarColeta = db.transaction(function (resultados) {
                 sem_leitura: s.percentual === null ? 1 : 0,
                 alerta: s.alerta || null,
             });
+
+            if (s.percentual !== null && antes && antes.pct != null &&
+                antes.pct <= 30 && s.percentual >= 80 && !trocaNoDia.get(imp.id, dia)) {
+                inserirTroca.run({
+                    impressora_id: imp.id,
+                    toner: s.descricao || null,
+                    data: dia,
+                    momento: momento,
+                });
+                inserirEvento.run({
+                    impressora_id: imp.id,
+                    nome: imp.nome || null,
+                    sala: imp.sala || null,
+                    tipo: "troca",
+                    descricao: "Troca de toner detectada" + (s.descricao ? " (" + s.descricao + ")" : ""),
+                    severidade: "ok",
+                    momento: dia + "T12:00:00.000Z",
+                });
+            }
         }
 
         if (anterior && anterior.severidade !== sev) {
