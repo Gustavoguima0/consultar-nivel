@@ -226,6 +226,37 @@
                         </div>
                     </div>
 
+                    <div style="margin-top:24px;">
+                        <sc-if value="{{ trocaFechada }}" hint-placeholder-val="{{ true }}">
+                            <button type="button" class="btn btn-primary" onClick="{{ abrirTroca }}">Registrar troca de
+                                toner</button>
+                        </sc-if>
+                        <sc-if value="{{ trocaAberta }}" hint-placeholder-val="{{ false }}">
+                            <div class="card elev-sm" style="gap:12px;max-width:420px;">
+                                <div class="card-kicker">Registrar troca de toner</div>
+                                <div class="field">
+                                    <label>Data da troca</label>
+                                    <input class="input" type="date" value="{{ trocaData }}"
+                                        onChange="{{ setTrocaData }}"></input>
+                                </div>
+                                <div class="field">
+                                    <label>Toner</label>
+                                    <input class="input" value="{{ trocaToner }}"
+                                        onChange="{{ setTrocaToner }}"></input>
+                                </div>
+                                <div style="display:flex;gap:8px;">
+                                    <button type="button" class="btn btn-primary"
+                                        onClick="{{ confirmarTroca }}">Confirmar</button>
+                                    <button type="button" class="btn btn-secondary"
+                                        onClick="{{ cancelarTroca }}">Cancelar</button>
+                                </div>
+                                <sc-if value="{{ temTrocaMsg }}" hint-placeholder-val="{{ false }}">
+                                    <div style="font-size:12px;color:{{ colorCritical }};">{{ trocaMsg }}</div>
+                                </sc-if>
+                            </div>
+                        </sc-if>
+                    </div>
+
                     <div style="margin-top:28px;">
                         <h5 style="margin-bottom:14px;">Histórico</h5>
                         <div style="display:flex;flex-direction:column;">
@@ -354,20 +385,24 @@ class Component extends DCLogic {
     loaded: false,
     printers: [],
     events: [],
+    trocaAberta: false,
+    trocaData: '',
+    trocaToner: '',
+    trocaMsg: '',
   };
 
   async componentDidMount() {
     const mod = await import('./printer-data.js');
     this._mod = mod;
-     const carregar = async () => {
+    this.carregar = async () => {
       const [ri, rh] = await Promise.all([fetch('/api/impressoras'), fetch('/api/historico')]);
       const dados = await ri.json();
       let hist = [];
       try { hist = await rh.json(); } catch (e) { hist = mod.allEvents(); }
       this.setState({ loaded: true, printers: dados.map(mod.adaptarImpressora), events: hist });
     };
-    await carregar();
-    this._interval = setInterval(carregar, 60000);
+    await this.carregar();
+    this._interval = setInterval(this.carregar, 60000);
   }
 
   componentWillUnmount() {
@@ -377,6 +412,28 @@ class Component extends DCLogic {
   go(screen, id) {
     this.setState({ screen, selectedId: id != null ? id : this.state.selectedId });
     if (typeof window !== 'undefined') window.scrollTo(0, 0);
+  }
+
+  abrirTroca(tonerPadrao) {
+    const hoje = new Date().toISOString().slice(0, 10);
+    this.setState({ trocaAberta: true, trocaData: hoje, trocaToner: tonerPadrao || '', trocaMsg: '' });
+  }
+
+  async confirmarTroca() {
+    const { selectedId, trocaData, trocaToner } = this.state;
+    if (!selectedId) return;
+    try {
+      const r = await fetch('/api/trocas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ impressora_id: selectedId, toner: trocaToner, data: trocaData }),
+      });
+      if (!r.ok) throw new Error('falha');
+      this.setState({ trocaAberta: false, trocaMsg: '' });
+      if (this.carregar) await this.carregar();
+    } catch (e) {
+      this.setState({ trocaMsg: 'Erro ao registrar a troca. Tente de novo.' });
+    }
   }
 
     enrich(p) {
@@ -473,7 +530,7 @@ class Component extends DCLogic {
     const countOffline = enriched.filter((p) => p.status === 'offline').length;
 
     const alertPrinters = enriched.filter((p) => p.sevKey !== 'ok');
-    
+
     const allEvts = this.state.events.map((e) => this.enrichEvent(e));
     const filteredEvents = allEvts.filter((e) => {
       const s = histSearch.trim().toLowerCase();
@@ -483,6 +540,8 @@ class Component extends DCLogic {
     });
 
     const selectedPrinter = enriched.find((p) => p.id === selectedId) || { cartridges: [], events: [] };
+    const tonerPadrao = (selectedPrinter.cartridges || []).filter((c) => c.ehToner)[0];
+    const tonerPadraoNome = tonerPadrao ? tonerPadrao.name : '';
 
     return {
       loaded: true,
@@ -512,6 +571,17 @@ class Component extends DCLogic {
       setFilterOk: () => this.setState({ filter: 'ok' }),
       filteredPrinters,
       selected: selectedPrinter,
+      trocaAberta: this.state.trocaAberta,
+      trocaFechada: !this.state.trocaAberta,
+      trocaData: this.state.trocaData,
+      trocaToner: this.state.trocaToner,
+      trocaMsg: this.state.trocaMsg,
+      temTrocaMsg: !!this.state.trocaMsg,
+      abrirTroca: () => this.abrirTroca(tonerPadraoNome),
+      cancelarTroca: () => this.setState({ trocaAberta: false, trocaMsg: '' }),
+      setTrocaData: (e) => this.setState({ trocaData: e.target.value }),
+      setTrocaToner: (e) => this.setState({ trocaToner: e.target.value }),
+      confirmarTroca: () => this.confirmarTroca(),
       hasAlerts: alertPrinters.length > 0,
       noAlerts: alertPrinters.length === 0,
       alertCount: alertPrinters.length,

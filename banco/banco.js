@@ -33,8 +33,16 @@ CREATE TABLE IF NOT EXISTS eventos (
   severidade TEXT,
   momento TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS trocas (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  impressora_id TEXT NOT NULL,
+  toner TEXT,
+  data TEXT NOT NULL,
+  momento TEXT NOT NULL
+);
 CREATE INDEX IF NOT EXISTS idx_coletas_imp ON coletas (impressora_id, momento);
 CREATE INDEX IF NOT EXISTS idx_eventos_mom ON eventos (momento);
+CREATE INDEX IF NOT EXISTS idx_trocas_imp ON trocas (impressora_id, data);
 `);
 
 function severidadeDe(imp) {
@@ -147,4 +155,46 @@ function historico(limite) {
     });
 }
 
-module.exports = { salvarColeta, historico, severidadeDe };
+const inserirTroca = db.prepare(
+    `INSERT INTO trocas (impressora_id, toner, data, momento)
+     VALUES (@impressora_id, @toner, @data, @momento)`
+);
+const dadosImpressora = db.prepare(
+    `SELECT nome, sala FROM coletas WHERE impressora_id = ? ORDER BY id DESC LIMIT 1`
+);
+const lerTrocas = db.prepare(
+    `SELECT impressora_id, toner, data, momento FROM trocas
+     WHERE impressora_id = ? ORDER BY data DESC, id DESC`
+);
+
+// registra uma troca de toner: grava na tabela "trocas" e cria um evento
+// no historico. a data (yyyy-mm-dd) e escolhida pelo usuario.
+const registrarTroca = db.transaction(function (dados) {
+    const momento = new Date().toISOString();
+    const data = dados.data || momento.slice(0, 10);
+    const info = dadosImpressora.get(dados.impressora_id) || {};
+
+    inserirTroca.run({
+        impressora_id: dados.impressora_id,
+        toner: dados.toner || null,
+        data: data,
+        momento: momento,
+    });
+
+    inserirEvento.run({
+        impressora_id: dados.impressora_id,
+        nome: info.nome || null,
+        sala: info.sala || null,
+        tipo: "troca",
+        descricao: "Troca de toner" + (dados.toner ? " (" + dados.toner + ")" : ""),
+        severidade: "ok",
+        momento: data + "T12:00:00.000Z",
+    });
+    return { ok: true };
+});
+
+function trocasDe(impressoraId) {
+    return lerTrocas.all(impressoraId);
+}
+
+module.exports = { salvarColeta, historico, severidadeDe, registrarTroca, trocasDe };

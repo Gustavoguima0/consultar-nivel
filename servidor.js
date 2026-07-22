@@ -1,9 +1,10 @@
 const express = require("express");
 const path = require("path");
 const { coletarTodas } = require("./coletor/coletor.js");
-const { salvarColeta, historico } = require("./banco/banco.js");
+const { salvarColeta, historico, registrarTroca } = require("./banco/banco.js");
 
 const app = express();
+app.use(express.json());
 const PORTA = 3000;
 const INTERVALO_MS = 60 * 60 * 1000;
 let cache = null;
@@ -30,6 +31,24 @@ app.get("/api/impressoras", async function (req, res) {
 
 app.get("/api/historico", function (req, res) {
     res.json(historico(200));
+});
+
+app.post("/api/trocas", function (req, res) {
+    const dados = req.body || {};
+    if (!dados.impressora_id) {
+        res.status(400).json({ erro: "impressora_id obrigatório" });
+        return;
+    }
+    try {
+        registrarTroca({
+            impressora_id: dados.impressora_id,
+            toner: dados.toner,
+            data: dados.data,
+        });
+        res.json({ ok: true });
+    } catch (e) {
+        res.status(500).json({ erro: e.message });
+    }
 });
 
 app.use(express.static(path.join(__dirname, "painel")));
