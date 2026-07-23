@@ -129,6 +129,7 @@ const salvarColeta = db.transaction(function (resultados) {
         const suprimentos = imp.suprimentos || [];
         for (const s of suprimentos) {
             if (s.tipo !== "toner") continue;
+            // nivel da leitura anterior (antes de gravar a atual)
             const antes = s.descricao ? ultimoNivelToner.get(imp.id, s.descricao) : null;
 
             inserirToner.run({
@@ -139,6 +140,8 @@ const salvarColeta = db.transaction(function (resultados) {
                 alerta: s.alerta || null,
             });
 
+            // auto-deteccao de troca: nivel pulou de baixo (<=30%) para cheio (>=80%).
+            // toner nunca sobe sozinho, entao esse pulo so acontece numa troca.
             if (s.percentual !== null && antes && antes.pct != null &&
                 antes.pct <= 30 && s.percentual >= 80 && !trocaNoDia.get(imp.id, dia)) {
                 inserirTroca.run({
@@ -156,6 +159,7 @@ const salvarColeta = db.transaction(function (resultados) {
                     severidade: "ok",
                     momento: dia + "T12:00:00.000Z",
                 });
+                // baixa 1 do estoque desse modelo (auto-deteccao)
                 const est = baixaEstoque(s.descricao);
                 if (est.semEstoque) {
                     inserirEvento.run({
@@ -224,6 +228,7 @@ function definirEstoque(modelo, quantidade, minimo) {
 function listarEstoque() {
     const mapa = {};
     for (const r of lerEstoque.all()) mapa[r.modelo] = r;
+    // inclui os modelos que aparecem nas impressoras mas ainda nao tem estoque
     for (const d of modelosDetectados.all()) {
         if (d.descricao && !mapa[d.descricao]) {
             mapa[d.descricao] = { modelo: d.descricao, quantidade: 0, minimo: 1 };
@@ -232,6 +237,8 @@ function listarEstoque() {
     return Object.values(mapa).sort(function (a, b) { return a.modelo.localeCompare(b.modelo); });
 }
 
+// baixa 1 do estoque numa troca. nao deixa negativar.
+// retorna { semEstoque: true } se estava zerado (para avisar).
 function baixaEstoque(modelo) {
     if (!modelo) return { semEstoque: false };
     const r = getEstoque.get(modelo);
@@ -252,6 +259,8 @@ const lerTrocas = db.prepare(
      WHERE impressora_id = ? ORDER BY data DESC, id DESC`
 );
 
+// registra uma troca de toner: grava na tabela "trocas" e cria um evento
+// no historico. a data (yyyy-mm-dd) e escolhida pelo usuario.
 const registrarTroca = db.transaction(function (dados) {
     const momento = new Date().toISOString();
     const data = dados.data || momento.slice(0, 10);
@@ -274,6 +283,7 @@ const registrarTroca = db.transaction(function (dados) {
         momento: data + "T12:00:00.000Z",
     });
 
+    // baixa 1 do estoque desse modelo. se estava zerado, registra um aviso.
     const est = baixaEstoque(dados.toner);
     if (est.semEstoque) {
         inserirEvento.run({
@@ -293,4 +303,18 @@ function trocasDe(impressoraId) {
     return lerTrocas.all(impressoraId);
 }
 
-module.exports = { salvarColeta, historico, severidadeDe, registrarTroca, trocasDe, listarEstoque, definirEstoque };
+// historico de nivel do toner de uma impressora (so leituras com numero real).
+const lerNiveis = db.prepare(
+    `SELECT c.momento AS momento, t.percentual AS pct
+     FROM toners t JOIN coletas c ON c.id = t.coleta_id
+     WHERE c.impressora_id = ? AND t.percentual IS NOT NULL
+     ORDER BY t.id ASC LIMIT 1000`
+);
+function niveisDe(impressoraId) {
+    return lerNiveis.all(impressoraId).map(function (r) {
+        return { when: r.momento, pct: r.pct };
+    });
+}
+
+
+module.exports = { salvarColeta, historico, severidadeDe, registrarTroca, trocasDe, listarEstoque, definirEstoque, niveisDe };

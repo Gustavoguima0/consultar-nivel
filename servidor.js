@@ -1,7 +1,7 @@
 const express = require("express");
 const path = require("path");
 const { coletarTodas } = require("./coletor/coletor.js");
-const { salvarColeta, historico, registrarTroca, listarEstoque, definirEstoque } = require("./banco/banco.js");
+const { salvarColeta, historico, registrarTroca, listarEstoque, definirEstoque, niveisDe } = require("./banco/banco.js");
 
 const app = express();
 app.use(express.json());
@@ -53,6 +53,15 @@ app.post("/api/trocas", function (req, res) {
 
 app.get("/api/estoque", function (req, res) {
     res.json(listarEstoque());
+});
+
+app.get("/api/niveis", function (req, res) {
+    const id = req.query.impressora_id;
+    if (!id) {
+        res.status(400).json({ erro: "impressora_id obrigatório" });
+        return;
+    }
+    res.json(niveisDe(id));
 });
 
 app.post("/api/estoque", function (req, res) {

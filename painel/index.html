@@ -230,6 +230,38 @@
                         </div>
                     </div>
 
+                    <sc-if value="{{ temGrafico }}" hint-placeholder-val="{{ false }}">
+                        <div class="card elev-sm" style="margin-top:18px;gap:8px;">
+                            <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                                <div class="card-kicker">Nível do toner ao longo do tempo</div>
+                                <span style="font-size:12px;opacity:.7;">Atual: {{ grafAtual }}</span>
+                            </div>
+                            <svg viewBox="0 0 300 100" preserveAspectRatio="none"
+                                style="width:100%;height:120px;display:block;">
+                                <line x1="0" y1="0" x2="300" y2="0" stroke="currentColor" stroke-opacity="0.12" stroke-width="1"
+                                    vector-effect="non-scaling-stroke"></line>
+                                <line x1="0" y1="50" x2="300" y2="50" stroke="currentColor" stroke-opacity="0.12" stroke-width="1"
+                                    vector-effect="non-scaling-stroke"></line>
+                                <line x1="0" y1="100" x2="300" y2="100" stroke="currentColor" stroke-opacity="0.12"
+                                    stroke-width="1" vector-effect="non-scaling-stroke"></line>
+                                <polygon points="{{ grafArea }}" fill="{{ grafCor }}" opacity="0.12"></polygon>
+                                <polyline points="{{ grafPoints }}" fill="none" stroke="{{ grafCor }}" stroke-width="2"
+                                    stroke-linejoin="round" vector-effect="non-scaling-stroke"></polyline>
+                            </svg>
+                            <div style="display:flex;justify-content:space-between;font-size:11px;opacity:.5;">
+                                <span>{{ grafInicio }}</span>
+                                <span>{{ grafFim }}</span>
+                            </div>
+                        </div>
+                    </sc-if>
+                    <sc-if value="{{ semGrafico }}" hint-placeholder-val="{{ true }}">
+                        <div class="card elev-sm" style="margin-top:18px;">
+                            <p class="card-body">Ainda sem histórico de nível suficiente para o gráfico — ele aparece
+                                conforme o sistema coleta ao longo dos dias. Impressoras que não informam o nível (como
+                                as HP) não têm gráfico.</p>
+                        </div>
+                    </sc-if>
+
                     <div style="margin-top:24px;">
                         <sc-if value="{{ trocaFechada }}" hint-placeholder-val="{{ true }}">
                             <button type="button" class="btn btn-primary" onClick="{{ abrirTroca }}">Registrar troca de
@@ -377,7 +409,8 @@
             <sc-if value="{{ showEstoque }}" hint-placeholder-val="{{ false }}">
                 <main data-screen-label="Estoque" style="padding:28px 28px 48px;max-width:900px;margin:0 auto;">
                     <h2 style="margin-bottom:4px;">Estoque de toner</h2>
-                    <div style="font-size:13px;opacity:.6;margin-bottom:20px;"></div>
+                    <div style="font-size:13px;opacity:.6;margin-bottom:20px;">Quantos toners de cada modelo há no
+                        depósito. Cada troca (manual ou automática) baixa 1 do estoque.</div>
 
                     <table class="table">
                         <thead>
@@ -429,6 +462,7 @@ class Component extends DCLogic {
     printers: [],
     events: [],
     estoque: [],
+    niveis: [],
     trocaAberta: false,
     trocaData: '',
     trocaToner: '',
@@ -438,6 +472,7 @@ class Component extends DCLogic {
   async componentDidMount() {
     const mod = await import('./printer-data.js');
     this._mod = mod;
+    // pede permissao pra notificar na tela (uma vez)
     try {
       if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
         Notification.requestPermission();
@@ -458,6 +493,7 @@ class Component extends DCLogic {
     this._interval = setInterval(this.carregar, 60000);
   }
 
+  // avisa na tela quando uma impressora NOVA fica critica (nao repete as que ja estavam)
   avisarCriticas(lista) {
     const mod = this._mod;
     const agora = new Set();
@@ -501,8 +537,17 @@ class Component extends DCLogic {
   }
 
   go(screen, id) {
-    this.setState({ screen, selectedId: id != null ? id : this.state.selectedId });
+    const sid = id != null ? id : this.state.selectedId;
+    this.setState({ screen, selectedId: sid, niveis: [] });
+    if (screen === 'detail' && sid) this.carregarNiveis(sid);
     if (typeof window !== 'undefined') window.scrollTo(0, 0);
+  }
+
+  carregarNiveis(id) {
+    fetch('/api/niveis?impressora_id=' + encodeURIComponent(id))
+      .then((r) => r.json())
+      .then((n) => this.setState({ niveis: Array.isArray(n) ? n : [] }))
+      .catch(() => {});
   }
 
   abrirTroca(tonerPadrao) {
@@ -538,7 +583,7 @@ class Component extends DCLogic {
     } catch (e) {}
   }
 
-  enrich(p) {
+    enrich(p) {
     const mod = this._mod;
     const sev = mod.severityOf(p);
     const sevColor = mod.SEVERITY_COLOR[sev];
@@ -650,7 +695,7 @@ class Component extends DCLogic {
     const countOffline = enriched.filter((p) => p.status === 'offline').length;
 
     const alertPrinters = enriched.filter((p) => p.sevKey !== 'ok');
-
+    
     const allEvts = this.state.events.map((e) => this.enrichEvent(e));
     const filteredEvents = allEvts.filter((e) => {
       const s = histSearch.trim().toLowerCase();
@@ -675,6 +720,31 @@ class Component extends DCLogic {
     }));
     const estoqueBaixo = estoqueView.filter((x) => x.baixo).length;
 
+    // grafico de nivel do toner ao longo do tempo (uma linha, 0 a 100%)
+    const niveis = this.state.niveis || [];
+    const grafW = 300;
+    const grafH = 100;
+    let temGrafico = false;
+    let grafPoints = '';
+    let grafArea = '';
+    let grafInicio = '';
+    let grafFim = '';
+    let grafAtual = '';
+    if (niveis.length >= 2) {
+      temGrafico = true;
+      const n = niveis.length;
+      const pts = niveis.map((p, i) => {
+        const x = (i / (n - 1)) * grafW;
+        const y = (1 - (Math.max(0, Math.min(100, p.pct)) / 100)) * grafH;
+        return x.toFixed(1) + ',' + y.toFixed(1);
+      });
+      grafPoints = pts.join(' ');
+      grafArea = '0,' + grafH + ' ' + grafPoints + ' ' + grafW + ',' + grafH;
+      grafInicio = mod.formatDate(niveis[0].when);
+      grafFim = mod.formatDate(niveis[n - 1].when);
+      grafAtual = niveis[n - 1].pct + '%';
+    }
+
     return {
       loaded: true,
       notLoaded: false,
@@ -695,6 +765,14 @@ class Component extends DCLogic {
       estoqueBaixo,
       temEstoqueBaixo: estoqueBaixo > 0,
       estoqueBadgeBg: `color-mix(in oklch, ${mod.SEVERITY_COLOR.critical} 25%, var(--color-bg))`,
+      temGrafico,
+      semGrafico: !temGrafico,
+      grafPoints,
+      grafArea,
+      grafInicio,
+      grafFim,
+      grafAtual,
+      grafCor: '#9184d9',
       printerCount: enriched.length,
       colorCritical: mod.SEVERITY_COLOR.critical,
       colorWarning: mod.SEVERITY_COLOR.warning,
