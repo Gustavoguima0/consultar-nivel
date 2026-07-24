@@ -236,18 +236,32 @@
                                 <div class="card-kicker">Nível do toner ao longo do tempo</div>
                                 <span style="font-size:12px;opacity:.7;">Atual: {{ grafAtual }}</span>
                             </div>
-                            <svg viewBox="0 0 300 100" preserveAspectRatio="none"
-                                style="width:100%;height:120px;display:block;">
-                                <line x1="0" y1="0" x2="300" y2="0" stroke="currentColor" stroke-opacity="0.12" stroke-width="1"
-                                    vector-effect="non-scaling-stroke"></line>
-                                <line x1="0" y1="50" x2="300" y2="50" stroke="currentColor" stroke-opacity="0.12" stroke-width="1"
-                                    vector-effect="non-scaling-stroke"></line>
-                                <line x1="0" y1="100" x2="300" y2="100" stroke="currentColor" stroke-opacity="0.12"
-                                    stroke-width="1" vector-effect="non-scaling-stroke"></line>
-                                <polygon points="{{ grafArea }}" fill="{{ grafCor }}" opacity="0.12"></polygon>
-                                <polyline points="{{ grafPoints }}" fill="none" stroke="{{ grafCor }}" stroke-width="2"
-                                    stroke-linejoin="round" vector-effect="non-scaling-stroke"></polyline>
-                            </svg>
+                            <div style="position:relative;" onmousemove="{{ onGrafMove }}" onmouseleave="{{ onGrafLeave }}">
+                                <svg viewBox="0 0 300 100" preserveAspectRatio="none"
+                                    style="width:100%;height:120px;display:block;">
+                                    <line x1="0" y1="0" x2="300" y2="0" stroke="currentColor" stroke-opacity="0.12" stroke-width="1"
+                                        vector-effect="non-scaling-stroke"></line>
+                                    <line x1="0" y1="50" x2="300" y2="50" stroke="currentColor" stroke-opacity="0.12" stroke-width="1"
+                                        vector-effect="non-scaling-stroke"></line>
+                                    <line x1="0" y1="100" x2="300" y2="100" stroke="currentColor" stroke-opacity="0.12"
+                                        stroke-width="1" vector-effect="non-scaling-stroke"></line>
+                                    <polygon points="{{ grafArea }}" fill="{{ grafCor }}" opacity="0.12"></polygon>
+                                    <polyline points="{{ grafPoints }}" fill="none" stroke="{{ grafCor }}" stroke-width="2"
+                                        stroke-linejoin="round" vector-effect="non-scaling-stroke"></polyline>
+                                </svg>
+                                <sc-if value="{{ hoverAtivo }}" hint-placeholder-val="{{ false }}">
+                                    <div style="position:absolute;top:0;bottom:0;left:{{ hoverLeftCss }};width:1px;background:{{ grafCor }};opacity:.55;pointer-events:none;"></div>
+                                </sc-if>
+                                <sc-if value="{{ hoverAtivo }}" hint-placeholder-val="{{ false }}">
+                                    <div style="position:absolute;left:{{ hoverLeftCss }};top:{{ hoverTopCss }};width:8px;height:8px;margin:-4px 0 0 -4px;border-radius:50%;background:{{ grafCor }};box-shadow:0 0 0 2px var(--color-bg);pointer-events:none;"></div>
+                                </sc-if>
+                                <sc-if value="{{ hoverAtivo }}" hint-placeholder-val="{{ false }}">
+                                    <div style="position:absolute;top:2px;left:{{ hoverTipCss }};transform:translateX(-50%);background:var(--color-surface);border:1px solid var(--color-divider);border-radius:8px;padding:4px 8px;font-size:11px;line-height:1.35;text-align:center;white-space:nowrap;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,.35);z-index:2;">
+                                        <div style="font-weight:600;">{{ hoverPct }}</div>
+                                        <div style="opacity:.6;">{{ hoverData }}</div>
+                                    </div>
+                                </sc-if>
+                            </div>
                             <div style="display:flex;justify-content:space-between;font-size:11px;opacity:.5;">
                                 <span>{{ grafInicio }}</span>
                                 <span>{{ grafFim }}</span>
@@ -463,6 +477,7 @@ class Component extends DCLogic {
     events: [],
     estoque: [],
     niveis: [],
+    hoverIdx: null,
     trocaAberta: false,
     trocaData: '',
     trocaToner: '',
@@ -538,7 +553,7 @@ class Component extends DCLogic {
 
   go(screen, id) {
     const sid = id != null ? id : this.state.selectedId;
-    this.setState({ screen, selectedId: sid, niveis: [] });
+    this.setState({ screen, selectedId: sid, niveis: [], hoverIdx: null });
     if (screen === 'detail' && sid) this.carregarNiveis(sid);
     if (typeof window !== 'undefined') window.scrollTo(0, 0);
   }
@@ -721,6 +736,8 @@ class Component extends DCLogic {
     const estoqueBaixo = estoqueView.filter((x) => x.baixo).length;
 
     // grafico de nivel do toner ao longo do tempo (uma linha, 0 a 100%)
+    // so faz sentido para impressoras que LEEM o nivel (Kyocera); HP nunca tem.
+    const podeTerGrafico = (selectedPrinter.cartridges || []).some((c) => c.ehToner && !c.semLeitura);
     const niveis = this.state.niveis || [];
     const grafW = 300;
     const grafH = 100;
@@ -745,6 +762,26 @@ class Component extends DCLogic {
       grafAtual = niveis[n - 1].pct + '%';
     }
 
+    // tooltip que segue o ponteiro sobre o grafico
+    const grafAltura = 120; // px, igual ao height do svg
+    let hoverAtivo = false;
+    let hoverLeftCss = '0%';
+    let hoverTopCss = '0px';
+    let hoverTipCss = '0%';
+    let hoverPct = '';
+    let hoverData = '';
+    const hi = this.state.hoverIdx;
+    if (temGrafico && hi != null && hi >= 0 && hi < niveis.length) {
+      hoverAtivo = true;
+      const fr = niveis.length > 1 ? hi / (niveis.length - 1) : 0;
+      const pv = Math.max(0, Math.min(100, niveis[hi].pct));
+      hoverLeftCss = (fr * 100).toFixed(2) + '%';
+      hoverTopCss = ((1 - pv / 100) * grafAltura).toFixed(1) + 'px';
+      hoverTipCss = Math.max(14, Math.min(86, fr * 100)).toFixed(2) + '%';
+      hoverPct = niveis[hi].pct + '%';
+      hoverData = mod.formatDate(niveis[hi].when);
+    }
+
     return {
       loaded: true,
       notLoaded: false,
@@ -766,13 +803,30 @@ class Component extends DCLogic {
       temEstoqueBaixo: estoqueBaixo > 0,
       estoqueBadgeBg: `color-mix(in oklch, ${mod.SEVERITY_COLOR.critical} 25%, var(--color-bg))`,
       temGrafico,
-      semGrafico: !temGrafico,
+      semGrafico: !temGrafico && podeTerGrafico,
       grafPoints,
       grafArea,
       grafInicio,
       grafFim,
       grafAtual,
       grafCor: '#9184d9',
+      hoverAtivo,
+      hoverLeftCss,
+      hoverTopCss,
+      hoverTipCss,
+      hoverPct,
+      hoverData,
+      onGrafMove: (e) => {
+        const box = e.currentTarget.getBoundingClientRect();
+        const lista = this.state.niveis || [];
+        if (lista.length < 2 || box.width <= 0) return;
+        const fr = Math.max(0, Math.min(1, (e.clientX - box.left) / box.width));
+        const idx = Math.round(fr * (lista.length - 1));
+        if (idx !== this.state.hoverIdx) this.setState({ hoverIdx: idx });
+      },
+      onGrafLeave: () => {
+        if (this.state.hoverIdx !== null) this.setState({ hoverIdx: null });
+      },
       printerCount: enriched.length,
       colorCritical: mod.SEVERITY_COLOR.critical,
       colorWarning: mod.SEVERITY_COLOR.warning,

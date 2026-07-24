@@ -6,9 +6,11 @@ const { salvarColeta, historico, registrarTroca, listarEstoque, definirEstoque, 
 const app = express();
 app.use(express.json());
 const PORTA = 3000;
-const INTERVALO_MS = 60 * 60 * 1000;
+const INTERVALO_MS = 10 * 60 * 1000; 
 let cache = null;
 let cacheHora = 0;
+
+
 
 async function coletarEGravar() {
     const resultados = await coletarTodas();
@@ -33,7 +35,7 @@ app.get("/api/historico", function (req, res) {
     res.json(historico(200));
 });
 
-app.post("/api/trocas", function (req, res) {
+app.post("/api/trocas", async function (req, res) {
     const dados = req.body || {};
     if (!dados.impressora_id) {
         res.status(400).json({ erro: "impressora_id obrigatório" });
@@ -45,6 +47,7 @@ app.post("/api/trocas", function (req, res) {
             toner: dados.toner,
             data: dados.data,
         });
+        await coletarEGravar(); // atualiza a cache com o nível real na hora
         res.json({ ok: true });
     } catch (e) {
         res.status(500).json({ erro: e.message });
